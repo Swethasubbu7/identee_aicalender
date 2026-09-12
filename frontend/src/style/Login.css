@@ -1,0 +1,584 @@
+* {
+  box-sizing: border-box;
+}
+
+.login-page {
+  min-height: 100vh;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+
+  background:
+    radial-gradient(
+      circle at 10% 20%,
+      rgba(218, 171, 75, 0.15),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 90% 80%,
+      rgba(218, 171, 75, 0.12),
+      transparent 30%
+    ),
+    #f8f6f0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 30px;
+  font-family: "Inter", "Segoe UI", sans-serif;
+}
+
+/* =========================
+   BACKGROUND SHAPES
+========================= */
+
+.background-shape {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(1px);
+}
+
+.shape-one {
+  width: 350px;
+  height: 350px;
+
+  top: -150px;
+  left: -100px;
+
+  background: rgba(212, 164, 65, 0.12);
+}
+
+.shape-two {
+  width: 250px;
+  height: 250px;
+
+  right: -80px;
+  top: 15%;
+
+  background: rgba(181, 139, 49, 0.10);
+}
+
+.shape-three {
+  width: 180px;
+  height: 180px;
+
+  bottom: -60px;
+  left: 40%;
+
+  background: rgba(225, 188, 102, 0.12);
+}
+
+/* =========================
+   MAIN CONTAINER
+========================= */
+
+.login-container {
+  width: 100%;
+  max-width: 1100px;
+
+  min-height: 650px;
+
+  display: grid;
+  grid-template-columns: 0.95fr 1.05fr;
+
+  background: rgba(255, 255, 255, 0.72);
+
+  border: 1px solid rgba(255, 255, 255, 0.9);
+
+  border-radius: 30px;
+
+  box-shadow:
+    0 30px 80px rgba(80, 65, 35, 0.13),
+    0 8px 25px rgba(80, 65, 35, 0.08);
+
+  backdrop-filter: blur(20px);
+
+  overflow: hidden;
+
+  position: relative;
+  z-index: 2;
+}
+
+/* =========================
+   BRAND SECTION
+========================= */
+
+.brand-section {
+  padding: 60px;
+
+  display: flex;
+  align-items: center;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.92),
+      rgba(247, 240, 224, 0.82)
+    );
+
+  border-right: 1px solid rgba(191, 155, 81, 0.14);
+}
+
+.brand-content {
+  max-width: 430px;
+}
+
+.logo-wrapper {
+  margin-bottom: 35px;
+
+  display: inline-flex;
+
+  padding: 14px 20px;
+
+  background: white;
+
+  border-radius: 18px;
+
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.08);
+}
+
+.brand-logo {
+  width: 210px;
+  height: auto;
+
+  display: block;
+
+  border-radius: 8px;
+}
+
+.brand-section h1 {
+  margin: 0;
+
+  font-size: 38px;
+  line-height: 1.15;
+
+  color: #27231c;
+
+  font-weight: 700;
+}
+
+.brand-section h1 span {
+  color: #c39235;
+}
+
+.brand-section > .brand-content > p {
+  margin-top: 16px;
+
+  color: #77705f;
+
+  font-size: 15px;
+
+  letter-spacing: 0.4px;
+}
+
+.brand-line {
+  width: 55px;
+  height: 3px;
+
+  margin: 30px 0;
+
+  border-radius: 10px;
+
+  background: linear-gradient(
+    90deg,
+    #bd8b2c,
+    #e0bd6c
+  );
+}
+
+.brand-description {
+  padding: 22px;
+
+  border-radius: 18px;
+
+  background: rgba(255, 255, 255, 0.65);
+
+  border: 1px solid rgba(194, 157, 82, 0.14);
+}
+
+.brand-description h3 {
+  margin: 0 0 8px;
+
+  color: #3c3426;
+
+  font-size: 17px;
+}
+
+.brand-description p {
+  margin: 0;
+
+  color: #7d7669;
+
+  font-size: 14px;
+
+  line-height: 1.6;
+}
+
+/* =========================
+   FORM SECTION
+========================= */
+
+.form-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 50px;
+}
+
+.form-card {
+  width: 100%;
+  max-width: 440px;
+}
+
+/* =========================
+   AUTH TOGGLE
+========================= */
+
+.auth-toggle {
+  display: flex;
+
+  padding: 5px;
+
+  background: #f1eee7;
+
+  border-radius: 13px;
+
+  margin-bottom: 35px;
+}
+
+.auth-toggle button {
+  flex: 1;
+
+  border: none;
+  background: transparent;
+
+  padding: 12px 15px;
+
+  border-radius: 9px;
+
+  color: #817a6c;
+
+  font-size: 14px;
+
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition: all 0.3s ease;
+}
+
+.auth-toggle button:hover {
+  color: #4a4336;
+}
+
+.auth-toggle button.active {
+  background: white;
+
+  color: #a77820;
+
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* =========================
+   FORM HEADING
+========================= */
+
+.form-heading {
+  margin-bottom: 28px;
+}
+
+.small-label {
+  display: inline-block;
+
+  color: #b3832b;
+
+  font-size: 11px;
+
+  font-weight: 700;
+
+  letter-spacing: 1.5px;
+
+  margin-bottom: 8px;
+}
+
+.form-heading h2 {
+  margin: 0;
+
+  color: #28241d;
+
+  font-size: 29px;
+
+  line-height: 1.2;
+}
+
+.form-heading p {
+  margin: 10px 0 0;
+
+  color: #888174;
+
+  font-size: 14px;
+}
+
+/* =========================
+   INPUTS
+========================= */
+
+.input-group {
+  margin-bottom: 18px;
+}
+
+.input-group label {
+  display: block;
+
+  margin-bottom: 7px;
+
+  color: #504a40;
+
+  font-size: 13px;
+
+  font-weight: 600;
+}
+
+.input-wrapper {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+
+  left: 15px;
+
+  font-size: 15px;
+
+  opacity: 0.65;
+
+  z-index: 1;
+}
+
+.input-wrapper input {
+  width: 100%;
+
+  height: 50px;
+
+  border: 1px solid #e2ddd2;
+
+  border-radius: 12px;
+
+  background: #fffdf9;
+
+  padding: 0 45px;
+
+  outline: none;
+
+  color: #39342c;
+
+  font-size: 14px;
+
+  transition:
+    border 0.25s ease,
+    box-shadow 0.25s ease,
+    background 0.25s ease;
+}
+
+.input-wrapper input::placeholder {
+  color: #aaa397;
+}
+
+.input-wrapper input:focus {
+  border-color: #c79a46;
+
+  background: white;
+
+  box-shadow:
+    0 0 0 4px rgba(199, 154, 70, 0.10);
+}
+
+/* =========================
+   PASSWORD
+========================= */
+
+.password-toggle {
+  position: absolute;
+
+  right: 12px;
+
+  border: none;
+
+  background: transparent;
+
+  cursor: pointer;
+
+  font-size: 15px;
+
+  opacity: 0.65;
+
+  transition: 0.2s;
+}
+
+.password-toggle:hover {
+  opacity: 1;
+}
+
+/* =========================
+   PRIMARY BUTTON
+========================= */
+
+.primary-button {
+  width: 100%;
+
+  height: 52px;
+
+  margin-top: 8px;
+
+  border: none;
+
+  border-radius: 12px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #b98225,
+      #d7ad5b
+    );
+
+  color: white;
+
+  font-size: 14px;
+
+  font-weight: 700;
+
+  cursor: pointer;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 12px;
+
+  box-shadow:
+    0 10px 25px rgba(173, 125, 35, 0.22);
+
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.primary-button:hover {
+  transform: translateY(-2px);
+
+  box-shadow:
+    0 14px 30px rgba(173, 125, 35, 0.30);
+}
+
+.primary-button:active {
+  transform: translateY(0);
+}
+
+.button-arrow {
+  font-size: 18px;
+
+  transition: transform 0.25s ease;
+}
+
+.primary-button:hover .button-arrow {
+  transform: translateX(4px);
+}
+
+/* =========================
+   SECURITY NOTE
+========================= */
+
+.security-note {
+  display: flex;
+
+  justify-content: center;
+  align-items: center;
+
+  gap: 7px;
+
+  margin-top: 25px;
+
+  color: #999183;
+
+  font-size: 11px;
+
+  letter-spacing: 0.3px;
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media (max-width: 850px) {
+
+  .login-container {
+    grid-template-columns: 1fr;
+
+    max-width: 560px;
+  }
+
+  .brand-section {
+    padding: 40px;
+
+    border-right: none;
+
+    border-bottom: 1px solid
+      rgba(191, 155, 81, 0.14);
+  }
+
+  .brand-content {
+    max-width: 100%;
+  }
+
+  .brand-section h1 {
+    font-size: 30px;
+  }
+
+  .brand-description {
+    display: none;
+  }
+
+  .form-section {
+    padding: 40px;
+  }
+}
+
+@media (max-width: 500px) {
+
+  .login-page {
+    padding: 15px;
+  }
+
+  .login-container {
+    border-radius: 22px;
+  }
+
+  .brand-section {
+    padding: 30px 25px;
+  }
+
+  .form-section {
+    padding: 30px 25px;
+  }
+
+  .brand-logo {
+    width: 170px;
+  }
+
+  .brand-section h1 {
+    font-size: 27px;
+  }
+
+  .form-heading h2 {
+    font-size: 25px;
+  }
+}
