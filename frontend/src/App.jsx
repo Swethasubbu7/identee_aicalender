@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import LayoutPage from "./pages/layouts/LayoutPage";
-import CalendarCreatePlaceholder from "./pages/calender/CalendarCreatePlaceholder";
+import CalendarCustomise from "./pages/calender/CalendarCustomise";
 
 function App() {
   return (
@@ -12,8 +12,8 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/layouts" element={<LayoutPage />} />
         <Route
-          path="/calendar/create"
-          element={<CalendarCreatePlaceholder />}
+          path="/calendar/customise/:layoutId"
+          element={<CalendarCustomise />}
         />
       </Routes>
     </BrowserRouter>

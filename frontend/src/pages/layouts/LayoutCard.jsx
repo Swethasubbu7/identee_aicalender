@@ -7,15 +7,41 @@ import {
   Typography,
   Chip,
   Button,
+  IconButton,
   Box,
 } from "@mui/material";
+import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
 
 const TYPE_LABELS = {
   normal: "Normal",
   "special-cut": "Special Cut",
+  "die-cut": "Die Cut",
 };
 
-const LayoutCard = ({ layout, isSelected, onPreview, onSelect }) => {
+const LayoutCard = ({
+  layout,
+  isSelected,
+  onPreview,
+  onSelect,
+  onEdit,
+  onDeactivate,
+}) => {
+  const handleDelete = (e) => {
+    e.stopPropagation();
+    const confirmed = window.confirm(
+      `Remove "${layout.name}"? It will no longer appear in the layout list.`,
+    );
+    if (confirmed) {
+      onDeactivate(layout);
+    }
+  };
+
+  const handleEdit = (e) => {
+    e.stopPropagation();
+    onEdit(layout);
+  };
+
   return (
     <Card
       sx={{
@@ -65,6 +91,41 @@ const LayoutCard = ({ layout, isSelected, onPreview, onSelect }) => {
             }}
           />
         )}
+
+        <Box
+          sx={{
+            position: "absolute",
+            top: 12,
+            left: 12,
+            display: "flex",
+            gap: 0.5,
+          }}
+        >
+          {onEdit && (
+            <IconButton
+              size="small"
+              onClick={handleEdit}
+              sx={{
+                background: "rgba(255,255,255,0.9)",
+                "&:hover": { background: "#FFFFFF" },
+              }}
+            >
+              <EditIcon fontSize="small" sx={{ color: "#B08D35" }} />
+            </IconButton>
+          )}
+          {onDeactivate && (
+            <IconButton
+              size="small"
+              onClick={handleDelete}
+              sx={{
+                background: "rgba(255,255,255,0.9)",
+                "&:hover": { background: "#FFF0F0" },
+              }}
+            >
+              <DeleteIcon fontSize="small" sx={{ color: "#C0392B" }} />
+            </IconButton>
+          )}
+        </Box>
       </Box>
 
       <CardContent sx={{ flexGrow: 1 }}>
