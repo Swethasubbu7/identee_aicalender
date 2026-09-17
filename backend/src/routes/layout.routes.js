@@ -8,21 +8,23 @@ const {
   deleteLayout,
 } = require("../controllers/layout.controller");
 
+const { verifyToken } = require("../middleware/auth.middleware");
+const upload = require("../middleware/upload.middleware");
+
 const router = express.Router();
 
-// Get all active layouts (supports ?type= ?size= ?search=)
-router.get("/", getLayouts);
+const layoutFiles = upload.fields([
+  { name: "previewImage", maxCount: 1 },
+  { name: "layoutFile", maxCount: 1 },
+]);
 
-// Get single layout by ID
+// Public — browsing layouts
+router.get("/", getLayouts);
 router.get("/:id", getLayoutById);
 
-// Create a new layout
-router.post("/", createLayout);
-
-// Update an existing layout
-router.put("/:id", updateLayout);
-
-// Soft-delete (deactivate) a layout
-router.delete("/:id", deleteLayout);
+// Protected — designer/staff management
+router.post("/", verifyToken, layoutFiles, createLayout);
+router.put("/:id", verifyToken, layoutFiles, updateLayout);
+router.delete("/:id", verifyToken, deleteLayout);
 
 module.exports = router;

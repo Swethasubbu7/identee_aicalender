@@ -1,11 +1,3 @@
-// One-off script to populate the database with sample layouts for testing.
-//
-// Run from the backend folder with:
-//   node src/seed/seedLayouts.js
-//
-// NOTE: These are placeholder sample layouts for UI testing only.
-// They are not final production designs.
-
 const mongoose = require("mongoose");
 require("dotenv").config();
 
@@ -20,34 +12,40 @@ const sampleLayouts = [
       "Traditional calendar layout with a fixed photo area at the top.",
     previewImage: "https://placehold.co/600x800/png?text=Classic+Temple",
     layoutFile: "layouts/classic-temple-layout.json",
+    editableAreas: [
+      {
+        id: "main-photo",
+        type: "image",
+        x: 90,
+        y: 60,
+        width: 420,
+        height: 340,
+        shape: "rectangle",
+        required: true,
+      },
+    ],
     isActive: true,
   },
   {
-    name: "Traditional Normal Layout",
-    type: "normal",
-    size: "A4",
-    description: "A clean, traditional 12-month layout suited for general use.",
-    previewImage: "https://placehold.co/600x800/png?text=Traditional+Layout",
-    layoutFile: "layouts/traditional-normal-layout.json",
-    isActive: true,
-  },
-  {
-    name: "Devotional Normal Layout",
+    name: "Traditional Devotional Layout",
     type: "normal",
     size: "A3",
-    description: "Devotional-themed layout with a large central photo area.",
-    previewImage: "https://placehold.co/600x850/png?text=Devotional+Layout",
-    layoutFile: "layouts/devotional-normal-layout.json",
-    isActive: true,
-  },
-  {
-    name: "Special Cut Krishna Layout",
-    type: "special-cut",
-    size: "12 x 18 inch",
-    description:
-      "Special-cut devotional calendar layout shaped around the Krishna motif.",
-    previewImage: "https://placehold.co/600x900/png?text=Krishna+Special+Cut",
-    layoutFile: "layouts/special-cut-krishna-layout.json",
+    description: "A clean, traditional 12-month layout suited for general use.",
+    previewImage:
+      "https://placehold.co/600x800/png?text=Traditional+Devotional",
+    layoutFile: "layouts/traditional-devotional-layout.json",
+    editableAreas: [
+      {
+        id: "main-photo",
+        type: "image",
+        x: 90,
+        y: 60,
+        width: 420,
+        height: 340,
+        shape: "rectangle",
+        required: true,
+      },
+    ],
     isActive: true,
   },
   {
@@ -58,16 +56,81 @@ const sampleLayouts = [
       "Temple silhouette special-cut layout with an arched photo frame.",
     previewImage: "https://placehold.co/600x900/png?text=Temple+Special+Cut",
     layoutFile: "layouts/temple-special-cut-layout.json",
+    editableAreas: [
+      {
+        id: "main-photo",
+        type: "image",
+        x: 100,
+        y: 80,
+        width: 400,
+        height: 420,
+        shape: "arch",
+        required: true,
+      },
+    ],
     isActive: true,
   },
   {
-    name: "Floral Special Cut Layout",
+    name: "Arch Special Cut Layout",
     type: "special-cut",
-    size: "13 x 19 inch",
-    description:
-      "Decorative floral-border special-cut layout for festive designs.",
-    previewImage: "https://placehold.co/600x950/png?text=Floral+Special+Cut",
-    layoutFile: "layouts/floral-special-cut-layout.json",
+    size: "12 x 18 inch",
+    description: "Arch-shaped special-cut layout for devotional themes.",
+    previewImage: "https://placehold.co/600x900/png?text=Arch+Special+Cut",
+    layoutFile: "layouts/arch-special-cut-layout.json",
+    editableAreas: [
+      {
+        id: "main-photo",
+        type: "image",
+        x: 100,
+        y: 80,
+        width: 400,
+        height: 420,
+        shape: "arch",
+        required: true,
+      },
+    ],
+    isActive: true,
+  },
+  {
+    name: "Krishna Die Cut Layout",
+    type: "die-cut",
+    size: "Custom",
+    description: "Die-cut devotional layout shaped around the Krishna motif.",
+    previewImage: "https://placehold.co/600x900/png?text=Krishna+Die+Cut",
+    layoutFile: "layouts/krishna-die-cut-layout.json",
+    editableAreas: [
+      {
+        id: "main-photo",
+        type: "image",
+        x: 120,
+        y: 100,
+        width: 360,
+        height: 360,
+        shape: "circle",
+        required: true,
+      },
+    ],
+    isActive: true,
+  },
+  {
+    name: "Floral Die Cut Layout",
+    type: "die-cut",
+    size: "Custom",
+    description: "Decorative floral-border die-cut layout for festive designs.",
+    previewImage: "https://placehold.co/600x950/png?text=Floral+Die+Cut",
+    layoutFile: "layouts/floral-die-cut-layout.json",
+    editableAreas: [
+      {
+        id: "main-photo",
+        type: "image",
+        x: 120,
+        y: 100,
+        width: 360,
+        height: 360,
+        shape: "circle",
+        required: true,
+      },
+    ],
     isActive: true,
   },
 ];
@@ -77,10 +140,8 @@ const seed = async () => {
     await mongoose.connect(process.env.MONGO_URI);
     console.log("MongoDB connected for seeding ✅");
 
-    // Clear out any previously seeded sample layouts with the same names
     const names = sampleLayouts.map((l) => l.name);
     await Layout.deleteMany({ name: { $in: names } });
-
     await Layout.insertMany(sampleLayouts);
 
     console.log(`Seeded ${sampleLayouts.length} sample layouts 🎉`);

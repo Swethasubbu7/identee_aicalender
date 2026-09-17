@@ -10,10 +10,12 @@ import {
   Chip,
   IconButton,
 } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 
 const TYPE_LABELS = {
   normal: "Normal",
   "special-cut": "Special Cut",
+  "die-cut": "Die Cut",
 };
 
 const LayoutPreviewModal = ({
@@ -26,7 +28,7 @@ const LayoutPreviewModal = ({
   if (!layout) return null;
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle
         sx={{
           display: "flex",
@@ -35,11 +37,10 @@ const LayoutPreviewModal = ({
         }}
       >
         {layout.name}
-        <IconButton onClick={onClose} size="small" aria-label="Close preview">
-          <Typography sx={{ fontSize: 20, lineHeight: 1 }}>✕</Typography>
+        <IconButton onClick={onClose} size="small">
+          <CloseIcon fontSize="small" />
         </IconButton>
       </DialogTitle>
-
       <DialogContent dividers>
         <Box
           component="img"
@@ -50,28 +51,30 @@ const LayoutPreviewModal = ({
           alt={layout.name}
           sx={{
             width: "100%",
-            maxHeight: 500,
+            maxHeight: 420,
             objectFit: "contain",
             borderRadius: 1,
             mb: 2,
-            backgroundColor: "grey.100",
+            backgroundColor: "#FAF6EC",
           }}
         />
-
         <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
-          <Chip label={TYPE_LABELS[layout.type] || layout.type} size="small" />
+          <Chip
+            label={TYPE_LABELS[layout.type] || layout.type}
+            size="small"
+            variant="outlined"
+          />
           <Chip label={layout.size} size="small" variant="outlined" />
         </Box>
-
-        <Typography variant="body1" color="text.secondary">
+        <Typography variant="body2" sx={{ color: "#7A7266" }}>
           {layout.description || "No description available."}
         </Typography>
       </DialogContent>
-
       <DialogActions sx={{ p: 2 }}>
         <Button onClick={onClose}>Close</Button>
         <Button
           variant="contained"
+          color="primary"
           disabled={isSelected}
           onClick={() => onSelect(layout)}
         >
