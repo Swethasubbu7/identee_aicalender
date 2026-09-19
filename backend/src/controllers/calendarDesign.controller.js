@@ -31,6 +31,20 @@ const createDraft = async (req, res) => {
   }
 };
 
+const listMyDesigns = async (req, res) => {
+  try {
+    const designs = await CalendarDesign.find({ createdBy: req.user.userId })
+      .populate("layoutId", "name previewImage type size")
+      .sort({ updatedAt: -1 })
+      .limit(20);
+
+    res.status(200).json({ message: "Designs fetched", designs });
+  } catch (error) {
+    console.error("List designs error:", error);
+    res.status(500).json({ message: "Failed to fetch designs" });
+  }
+};
+
 const getDesign = async (req, res) => {
   try {
     const design = await CalendarDesign.findById(req.params.id);
@@ -89,4 +103,10 @@ const autosaveDesign = async (req, res) => {
   }
 };
 
-module.exports = { createDraft, getDesign, updateDesign, autosaveDesign };
+module.exports = {
+  createDraft,
+  listMyDesigns,
+  getDesign,
+  updateDesign,
+  autosaveDesign,
+};
