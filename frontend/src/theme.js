@@ -1,11 +1,14 @@
 import { createTheme } from "@mui/material/styles";
 
-const GOLD = "#B08D35";
-const GOLD_LIGHT = "#C9A227";
-const GOLD_DARK = "#8a6d1f";
-const CREAM = "#FAF6EC";
-const CREAM_PAPER = "#FFFFFF";
-const INK = "#2A2620";
+// Exported so other files (e.g. identeeColors.js) can build on the same
+// palette instead of re-declaring these hex values in a second place.
+export const GOLD = "#B08D35";
+export const GOLD_LIGHT = "#C9A227";
+export const GOLD_DARK = "#8a6d1f";
+export const CREAM = "#FAF6EC";
+export const CREAM_PAPER = "#FFFFFF";
+export const INK = "#2A2620";
+export const TEXT_SECONDARY = "#7A7266";
 
 const theme = createTheme({
   palette: {
@@ -18,7 +21,7 @@ const theme = createTheme({
     },
     text: {
       primary: INK,
-      secondary: "#7A7266",
+      secondary: TEXT_SECONDARY,
     },
     divider: "rgba(176, 141, 53, 0.2)",
   },
@@ -62,6 +65,14 @@ const theme = createTheme({
           borderColor: "rgba(176,141,53,0.4)",
           color: GOLD_DARK,
         },
+        // The original override only styled the "outlined" variant, so any
+        // filled chip (status badges, selected-type tags) fell through to
+        // MUI's stock gray. This gives filled chips the same gold identity.
+        filled: {
+          backgroundColor: "rgba(176,141,53,0.12)",
+          color: GOLD_DARK,
+          fontWeight: 600,
+        },
       },
     },
     MuiTextField: {
@@ -74,6 +85,24 @@ const theme = createTheme({
             "&.Mui-focused fieldset": { borderColor: GOLD },
           },
         },
+      },
+    },
+    // A bare <Select> (not wrapped in <TextField>) renders MuiOutlinedInput
+    // directly, so without this override those dropdowns keep MUI's default
+    // gray border/focus color instead of the gold one defined above.
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: {
+          backgroundColor: "#FFFFFF",
+          "& fieldset": { borderColor: "rgba(176,141,53,0.25)" },
+          "&:hover fieldset": { borderColor: "rgba(176,141,53,0.5)" },
+          "&.Mui-focused fieldset": { borderColor: GOLD },
+        },
+      },
+    },
+    MuiSelect: {
+      styleOverrides: {
+        icon: { color: GOLD_DARK },
       },
     },
     MuiToggleButton: {
