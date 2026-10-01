@@ -7,6 +7,7 @@ const authRoutes = require("./routes/auth.routes");
 const registerRoutes = require("./routes/register.routes");
 const layoutRoutes = require("./routes/layout.routes");
 const calendarDesignRoutes = require("./routes/calendarDesign.routes");
+const aiGenerationRoutes = require("./routes/aiGeneration.routes");
 const path = require("path");
 const app = express();
 
@@ -20,6 +21,7 @@ app.use("/api/auth", registerRoutes);
 // Layout Routes
 app.use("/api/layouts", layoutRoutes);
 app.use("/api/calendar-designs", calendarDesignRoutes);
+app.use("/api/ai-generate", aiGenerationRoutes);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // MongoDB Connection

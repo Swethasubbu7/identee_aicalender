@@ -8,6 +8,9 @@ import React, {
 import { Box, CircularProgress } from "@mui/material";
 import * as fabric from "fabric";
 
+const CANVAS_WIDTH = 500;
+const CANVAS_HEIGHT = 650;
+
 const buildClipPath = (shape, width, height) => {
   switch (shape) {
     case "circle": {
@@ -52,6 +55,7 @@ const CalendarWorkspace = forwardRef(
     const fabricRef = useRef(null);
     const areaRef = useRef(null);
     const [loading, setLoading] = useState(true);
+    const [displayScale, setDisplayScale] = useState(1);
 
     const historyRef = useRef([]);
     const redoRef = useRef([]);
@@ -326,12 +330,43 @@ const CalendarWorkspace = forwardRef(
       },
     }));
 
+    // Keep the canvas's visual size in sync with its container's width AND
+    // height. Fabric still operates in real CANVAS_WIDTH x CANVAS_HEIGHT
+    // coordinates; only the CSS wrapper is scaled, so mouse/click coordinates
+    // stay correct. Scaling by height too (not just width) means the canvas
+    // never needs to overflow its container and trigger a scrollbar.
+    useEffect(() => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      const PADDING_BUFFER = 48; // matches this box's own padding (p: 3 = 24px * 2)
+
+      const computeScale = () => {
+        const availableWidth = container.clientWidth - PADDING_BUFFER;
+        const availableHeight = container.clientHeight - PADDING_BUFFER;
+        if (availableWidth <= 0 || availableHeight <= 0) return;
+        const widthScale = availableWidth / CANVAS_WIDTH;
+        const heightScale = availableHeight / CANVAS_HEIGHT;
+        const scale = Math.min(1, widthScale, heightScale);
+        setDisplayScale(scale > 0 ? scale : 1);
+      };
+
+      computeScale();
+      const observer = new ResizeObserver(computeScale);
+      observer.observe(container);
+      window.addEventListener("resize", computeScale);
+      return () => {
+        observer.disconnect();
+        window.removeEventListener("resize", computeScale);
+      };
+    }, []);
+
     useEffect(() => {
       if (!layout) return;
 
       const canvas = new fabric.Canvas(canvasElRef.current, {
-        width: 500,
-        height: 650,
+        width: CANVAS_WIDTH,
+        height: CANVAS_HEIGHT,
         backgroundColor: "#f4f1ea",
         preserveObjectStacking: true,
       });
@@ -446,18 +481,39 @@ const CalendarWorkspace = forwardRef(
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
-          background: "#EDE7D9",
-          borderRadius: 2,
-          p: 3,
-          minHeight: 650,
+          width: "100%",
+          flexGrow: 1,
+          minHeight: { xs: CANVAS_HEIGHT * displayScale + 48, md: 0 },
+          overflow: "hidden",
         }}
       >
-        {loading && (
-          <Box sx={{ position: "absolute" }}>
-            <CircularProgress sx={{ color: "#B08D35" }} />
+        <Box
+          sx={{
+            position: "relative",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            background: "#EDE7D9",
+            borderRadius: 2,
+            p: { xs: 1.5, sm: 3 },
+          }}
+        >
+          {loading && (
+            <Box sx={{ position: "absolute" }}>
+              <CircularProgress sx={{ color: "#B08D35" }} />
+            </Box>
+          )}
+          <Box
+            sx={{
+              width: CANVAS_WIDTH,
+              height: CANVAS_HEIGHT,
+              transform: `scale(${displayScale})`,
+              transformOrigin: "center center",
+            }}
+          >
+            <canvas ref={canvasElRef} />
           </Box>
-        )}
-        <canvas ref={canvasElRef} />
+        </Box>
       </Box>
     );
   },

@@ -3,7 +3,8 @@ const Layout = require("../models/Layout");
 
 const createDraft = async (req, res) => {
   try {
-    const { layoutId, canvasData, elements, year, language } = req.body;
+    const { layoutId, canvasData, elements, year, language, aiMetadata } =
+      req.body;
 
     if (!layoutId) {
       return res.status(400).json({ message: "layoutId is required" });
@@ -22,6 +23,7 @@ const createDraft = async (req, res) => {
       year,
       language,
       status: "draft",
+      ...(aiMetadata !== undefined && { aiMetadata }),
     });
 
     res.status(201).json({ message: "Draft created", design });
@@ -60,7 +62,8 @@ const getDesign = async (req, res) => {
 
 const updateDesign = async (req, res) => {
   try {
-    const { canvasData, elements, year, language, status } = req.body;
+    const { canvasData, elements, year, language, status, aiMetadata } =
+      req.body;
     const design = await CalendarDesign.findById(req.params.id);
     if (!design) {
       return res.status(404).json({ message: "Design not found" });
@@ -71,6 +74,7 @@ const updateDesign = async (req, res) => {
     if (year !== undefined) design.year = year;
     if (language !== undefined) design.language = language;
     if (status !== undefined) design.status = status;
+    if (aiMetadata !== undefined) design.aiMetadata = aiMetadata;
 
     await design.save();
     res.status(200).json({ message: "Design updated", design });
@@ -82,7 +86,7 @@ const updateDesign = async (req, res) => {
 
 const autosaveDesign = async (req, res) => {
   try {
-    const { canvasData, elements, year, language } = req.body;
+    const { canvasData, elements, year, language, aiMetadata } = req.body;
     const design = await CalendarDesign.findByIdAndUpdate(
       req.params.id,
       {
@@ -90,6 +94,7 @@ const autosaveDesign = async (req, res) => {
         ...(elements !== undefined && { elements }),
         ...(year !== undefined && { year }),
         ...(language !== undefined && { language }),
+        ...(aiMetadata !== undefined && { aiMetadata }),
       },
       { new: true },
     );
