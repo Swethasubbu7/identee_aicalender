@@ -15,8 +15,9 @@ import SearchIcon from "@mui/icons-material/Search";
 import AddIcon from "@mui/icons-material/Add";
 import AppSidebar from "../../components/AppSidebar";
 import LayoutCard from "./LayoutCard";
+import LayoutPreviewModal from "./LayoutPreviewModal";
 import UploadLayoutModal from "./UploadLayoutModal";
-import { getLayouts } from "../../services/layoutService";
+import { getLayouts, deactivateLayout } from "../../services/layoutService";
 import { colors, radii } from "../../identeeColors";
 import TopBar from "../../components/TopBar";
 
@@ -45,6 +46,8 @@ const LayoutPage = () => {
     localStorage.getItem(SELECTED_LAYOUT_STORAGE_KEY) || null,
   );
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+  const [previewLayout, setPreviewLayout] = useState(null);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
@@ -78,6 +81,14 @@ const LayoutPage = () => {
     setSelectedLayoutId(layout._id);
   };
 
+  // Used by both the card's "Select Layout" button and the preview
+  // modal's "Select This Layout" button — picking from the modal also
+  // closes it, since the user has made their choice.
+  const handlePickAndClosePreview = (layout) => {
+    handlePick(layout);
+    setPreviewLayout(null);
+  };
+
   const handleCancel = () => {
     navigate("/dashboard");
   };
@@ -98,6 +109,41 @@ const LayoutPage = () => {
       severity: "success",
     });
     fetchLayouts();
+  };
+
+  // Deleting a layout only soft-deletes it (isActive: false) on the backend,
+  // so it simply drops out of the (isActive-filtered) list on refetch.
+  const handleDeactivate = async (layout) => {
+    try {
+      setDeletingId(layout._id);
+      await deactivateLayout(layout._id);
+
+      // If the deleted layout was the one currently selected, clear that
+      // selection so the footer "Use This" button doesn't point at a
+      // layout that's no longer in the list.
+      if (selectedLayoutId === layout._id) {
+        setSelectedLayoutId(null);
+        localStorage.removeItem(SELECTED_LAYOUT_STORAGE_KEY);
+      }
+
+      setSnackbar({
+        open: true,
+        message: `"${layout.name}" removed`,
+        severity: "success",
+      });
+      fetchLayouts();
+    } catch (err) {
+      console.error("Failed to remove layout:", err);
+      setSnackbar({
+        open: true,
+        message:
+          err.response?.data?.message ||
+          "Failed to remove layout. Please try again.",
+        severity: "error",
+      });
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -205,15 +251,17 @@ const LayoutPage = () => {
                 background: colors.surface,
                 "& .MuiOutlinedInput-root": { borderRadius: `${radii.md}px` },
               }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon
-                      fontSize="small"
-                      sx={{ color: colors.textMuted }}
-                    />
-                  </InputAdornment>
-                ),
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon
+                        fontSize="small"
+                        sx={{ color: colors.textMuted }}
+                      />
+                    </InputAdornment>
+                  ),
+                },
               }}
             />
           </Box>
@@ -238,11 +286,14 @@ const LayoutPage = () => {
           ) : (
             <Grid container spacing={3}>
               {layouts.map((layout) => (
-                <Grid item xs={12} sm={6} md={4} lg={3} key={layout._id}>
+                <Grid key={layout._id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
                   <LayoutCard
                     layout={layout}
                     isSelected={selectedLayoutId === layout._id}
+                    onPreview={setPreviewLayout}
                     onSelect={handlePick}
+                    onDeactivate={handleDeactivate}
+                    deleting={deletingId === layout._id}
                   />
                 </Grid>
               ))}
@@ -297,6 +348,14 @@ const LayoutPage = () => {
         open={uploadOpen}
         onClose={() => setUploadOpen(false)}
         onSuccess={handleUploadSuccess}
+      />
+
+      <LayoutPreviewModal
+        layout={previewLayout}
+        open={Boolean(previewLayout)}
+        onClose={() => setPreviewLayout(null)}
+        onSelect={handlePickAndClosePreview}
+        isSelected={previewLayout?._id === selectedLayoutId}
       />
 
       <Snackbar

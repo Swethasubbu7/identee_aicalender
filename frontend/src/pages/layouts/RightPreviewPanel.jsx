@@ -105,12 +105,13 @@ const RightPreviewPanel = ({
   return (
     <Box
       sx={{
-        width: 330,
+        width: "100%",
+        maxWidth: { xs: "100%", md: 330 },
         flexShrink: 0,
+        height: "100%",
         background: "#FFFFFF",
-        borderLeft: "1px solid rgba(176,141,53,0.15)",
+        borderLeft: { xs: "none", md: "1px solid rgba(176,141,53,0.15)" },
         overflowY: "auto",
-        maxHeight: "calc(100vh - 65px)",
       }}
     >
       <Tabs
@@ -132,7 +133,7 @@ const RightPreviewPanel = ({
         <Tab value="ai" label="✨ AI Generate" />
       </Tabs>
 
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ p: { xs: 2, sm: 3 } }}>
         {tab === "manual" ? (
           <>
             {!selectedImage ? (
@@ -152,6 +153,7 @@ const RightPreviewPanel = ({
                     label="X"
                     size="small"
                     type="number"
+                    fullWidth
                     value={Math.round(selectedImage.left)}
                     onChange={handlePositionChange("left")}
                   />
@@ -159,6 +161,7 @@ const RightPreviewPanel = ({
                     label="Y"
                     size="small"
                     type="number"
+                    fullWidth
                     value={Math.round(selectedImage.top)}
                     onChange={handlePositionChange("top")}
                   />
@@ -173,6 +176,7 @@ const RightPreviewPanel = ({
                     label="Width"
                     size="small"
                     type="number"
+                    fullWidth
                     value={currentWidth}
                     onChange={handleWidthChange}
                   />
@@ -180,6 +184,7 @@ const RightPreviewPanel = ({
                     label="Height"
                     size="small"
                     type="number"
+                    fullWidth
                     value={currentHeight}
                     onChange={handleHeightChange}
                   />

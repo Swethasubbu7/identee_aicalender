@@ -128,13 +128,14 @@ const LeftPanel = ({
   return (
     <Box
       sx={{
-        width: 260,
+        width: "100%",
+        maxWidth: { xs: "100%", md: 260 },
         flexShrink: 0,
+        height: "100%",
         background: "#161616",
         color: "#F5F1E6",
-        p: 2.5,
+        p: { xs: 2, sm: 2.5 },
         overflowY: "auto",
-        maxHeight: "calc(100vh - 65px)",
         display: "flex",
         flexDirection: "column",
         gap: 2,
@@ -230,7 +231,11 @@ const LeftPanel = ({
           </Box>
         ) : (
           <Box
-            sx={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 1 }}
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr 1fr", sm: "1fr 1fr 1fr" },
+              gap: 1,
+            }}
           >
             {layouts.slice(0, 6).map((l) => (
               <Box

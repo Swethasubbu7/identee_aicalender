@@ -1,12 +1,20 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Box, Typography, Avatar, Divider, Tooltip } from "@mui/material";
+import {
+  Box,
+  Typography,
+  Avatar,
+  Divider,
+  Tooltip,
+  CircularProgress,
+} from "@mui/material";
 import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutlineOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import GridViewOutlinedIcon from "@mui/icons-material/GridViewOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import logo from "../assets/identeelogo.jpeg";
+import { getLayouts } from "../services/layoutService";
 
 const NAV_ITEMS = [
   {
@@ -19,7 +27,11 @@ const NAV_ITEMS = [
     key: "create",
     label: "Create New Project",
     icon: AddCircleOutlineIcon,
-    path: "/layouts",
+    // No static path: clicking this now auto-picks a layout and jumps
+    // straight into the AI Generate / Customise editor (see
+    // handleCreateNewProject below), instead of sending the user to the
+    // manual /layouts picker page.
+    path: null,
   },
   {
     key: "drafts",
@@ -43,6 +55,7 @@ const NAV_ITEMS = [
 
 const AppSidebar = ({ activeKey = "dashboard" }) => {
   const navigate = useNavigate();
+  const [creatingProject, setCreatingProject] = useState(false);
 
   const user = useMemo(() => {
     try {
@@ -59,12 +72,45 @@ const AppSidebar = ({ activeKey = "dashboard" }) => {
     navigate(path);
   };
 
+  // "Create New Project" used to just navigate to /layouts and make the
+  // user manually pick a layout before reaching the editor. Since the
+  // Customisation page is now AI-first, this instead fetches the
+  // available layouts, takes the first one, and opens the editor for it
+  // directly. If no layouts are available (or the fetch fails), it falls
+  // back to the old /layouts picker page so the flow never dead-ends.
+  const handleCreateNewProject = async () => {
+    if (creatingProject) return;
+    setCreatingProject(true);
+    try {
+      const data = await getLayouts();
+      const firstLayout = data?.layouts?.[0];
+      if (firstLayout?._id) {
+        navigate(`/calendar/customise/${firstLayout._id}`);
+      } else {
+        navigate("/layouts");
+      }
+    } catch (err) {
+      console.error("Failed to auto-select a layout:", err);
+      navigate("/layouts");
+    } finally {
+      setCreatingProject(false);
+    }
+  };
+
   return (
     <Box
       sx={{
         width: { xs: 64, sm: 76, md: 200, lg: 220 },
         flexShrink: 0,
         minHeight: "100vh",
+        // Pin the sidebar to the viewport so its black background always
+        // fills exactly the visible screen height, even when the page's
+        // main content is taller than one screen and scrolls further down.
+        // Without this, the sidebar's height only matches its own content
+        // and the black background visibly "runs out" partway down the page.
+        position: "sticky",
+        top: 0,
+        alignSelf: "flex-start",
         background: "#161616",
         display: "flex",
         flexDirection: "column",
@@ -118,10 +164,16 @@ const AppSidebar = ({ activeKey = "dashboard" }) => {
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const isActive = item.key === activeKey;
+          const isCreateItem = item.key === "create";
+          const isBusy = isCreateItem && creatingProject;
           return (
             <Tooltip key={item.key} title={item.label} placement="right">
               <Box
-                onClick={() => handleNavClick(item.path)}
+                onClick={() =>
+                  isCreateItem
+                    ? handleCreateNewProject()
+                    : handleNavClick(item.path)
+                }
                 sx={{
                   display: "flex",
                   alignItems: "center",
@@ -130,7 +182,8 @@ const AppSidebar = ({ activeKey = "dashboard" }) => {
                   px: { xs: 1, md: 1.5 },
                   py: 1,
                   borderRadius: 2,
-                  cursor: "pointer",
+                  cursor: isBusy ? "default" : "pointer",
+                  opacity: isBusy ? 0.7 : 1,
                   background: isActive
                     ? "linear-gradient(135deg, #C9A227, #B08D35)"
                     : "transparent",
@@ -143,7 +196,11 @@ const AppSidebar = ({ activeKey = "dashboard" }) => {
                   },
                 }}
               >
-                <Icon fontSize="small" />
+                {isBusy ? (
+                  <CircularProgress size={16} sx={{ color: "#E9C767" }} />
+                ) : (
+                  <Icon fontSize="small" />
+                )}
                 <Typography
                   variant="body2"
                   sx={{
