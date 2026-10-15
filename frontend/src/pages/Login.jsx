@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import axios from "axios";
+import { apiUrl } from "../config";
 import { useNavigate } from "react-router-dom";
 import "../style/Login.css";
 import logo from "../assets/identeelogo.jpeg";
@@ -62,7 +63,7 @@ const Login = () => {
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/auth/login",
+        apiUrl("/api/auth/login"),
         loginData,
       );
 
@@ -97,7 +98,7 @@ const Login = () => {
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/auth/register",
+        apiUrl("/api/auth/register"),
         {
           name: registerData.name,
           email: registerData.email,
@@ -134,7 +135,7 @@ const Login = () => {
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/auth/verify-otp",
+        apiUrl("/api/auth/verify-otp"),
         {
           email: registerData.email,
           otp: otp,

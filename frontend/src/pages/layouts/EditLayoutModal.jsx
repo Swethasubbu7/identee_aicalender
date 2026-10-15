@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -14,14 +14,12 @@ import {
   Switch,
 } from "@mui/material";
 import { updateLayout } from "../../services/layoutService";
+import { CUT_TYPE_OPTIONS } from "../../constants/cutTypes";
 
-const TYPE_OPTIONS = [
-  { value: "normal", label: "Normal" },
-  { value: "special-cut", label: "Special Cut" },
-  { value: "die-cut", label: "Die Cut" },
-];
+const TYPE_OPTIONS = CUT_TYPE_OPTIONS;
 
-const SIZE_OPTIONS = ["A4", "A3", "12 x 18 inch", "Custom"];
+// Fixed calendar sizes (inches) — custom sizes are not offered.
+const SIZE_OPTIONS = ["10x15", "12x18", "15x24", "20x30", "30x40"];
 
 const EditLayoutModal = ({ layout, open, onClose, onSuccess }) => {
   const [form, setForm] = useState({
@@ -36,20 +34,22 @@ const EditLayoutModal = ({ layout, open, onClose, onSuccess }) => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (layout) {
-      setForm({
-        name: layout.name || "",
-        type: layout.type || "normal",
-        size: layout.size || "A4",
-        description: layout.description || "",
-        isActive: layout.isActive !== undefined ? layout.isActive : true,
-      });
-      setPreviewImage(null);
-      setLayoutFile(null);
-      setError("");
-    }
-  }, [layout]);
+  // Reset the form when a different layout is opened (during render, as
+  // React recommends, instead of setState inside an effect).
+  const [shownLayout, setShownLayout] = useState(null);
+  if (layout && layout !== shownLayout) {
+    setShownLayout(layout);
+    setForm({
+      name: layout.name || "",
+      type: layout.type || "normal",
+      size: layout.size || "A4",
+      description: layout.description || "",
+      isActive: layout.isActive !== undefined ? layout.isActive : true,
+    });
+    setPreviewImage(null);
+    setLayoutFile(null);
+    setError("");
+  }
 
   if (!layout) return null;
 

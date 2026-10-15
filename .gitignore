@@ -2,3 +2,12 @@ node_modules/
 .env
 .env.*
 !.env.example
+
+# Uploaded files (customer images, layout assets, AI output)
+backend/src/uploads/
+backend/uploads/
+backend/src/storage/
+
+# Local browser-test accounts (scripts/e2eUsers.js)
+backend/.e2e-users.json
+backups/

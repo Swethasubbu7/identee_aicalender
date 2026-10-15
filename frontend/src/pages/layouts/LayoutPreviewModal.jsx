@@ -1,4 +1,3 @@
-import React from "react";
 import {
   Dialog,
   DialogTitle,
@@ -11,12 +10,9 @@ import {
   IconButton,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import { CUT_TYPE_LABELS } from "../../constants/cutTypes";
 
-const TYPE_LABELS = {
-  normal: "Normal",
-  "special-cut": "Special Cut",
-  "die-cut": "Die Cut",
-};
+const TYPE_LABELS = CUT_TYPE_LABELS;
 
 const LayoutPreviewModal = ({
   layout,

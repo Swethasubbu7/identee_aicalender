@@ -1,0 +1,44 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "backend",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "backend/src/index.js"
+      ],
+      "port": 5000
+    },
+    {
+      "name": "frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "frontend",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5173",
+        "--strictPort"
+      ],
+      "port": 5173
+    },
+    {
+      "name": "e2e-backend",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "backend/scripts/e2eServer.js"
+      ],
+      "port": 5001
+    },
+    {
+      "name": "e2e-frontend",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "frontend/scripts/e2eVite.mjs"
+      ],
+      "port": 5174
+    }
+  ]
+}

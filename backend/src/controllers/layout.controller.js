@@ -1,7 +1,18 @@
 const Layout = require("../models/Layout");
+const { CUT_TYPES } = require("../constants/calendar");
+const { toPublicUrl, uploadPath } = require("../lib/assetUrl");
 
-const ALLOWED_TYPES = ["normal", "special-cut", "die-cut"];
-const BACKEND_ORIGIN = "http://localhost:5000";
+const ALLOWED_TYPES = CUT_TYPES;
+
+// Stored paths are relative; respond with absolute URLs for the frontend.
+const withPublicUrls = (layout) => {
+  const obj = layout.toObject ? layout.toObject() : layout;
+  return {
+    ...obj,
+    previewImage: toPublicUrl(obj.previewImage),
+    layoutFile: toPublicUrl(obj.layoutFile),
+  };
+};
 
 const parseEditableAreas = (raw) => {
   if (!raw) return [];
@@ -28,7 +39,7 @@ const getLayouts = async (req, res) => {
     res.status(200).json({
       message: "Layouts fetched successfully",
       count: layouts.length,
-      layouts,
+      layouts: layouts.map(withPublicUrls),
     });
   } catch (error) {
     console.error("Get layouts error:", error);
@@ -46,7 +57,9 @@ const getLayoutById = async (req, res) => {
       return res.status(404).json({ message: "Layout not found" });
     }
 
-    res.status(200).json({ message: "Layout fetched successfully", layout });
+    res
+      .status(200)
+      .json({ message: "Layout fetched successfully", layout: withPublicUrls(layout) });
   } catch (error) {
     console.error("Get layout by id error:", error);
     res.status(400).json({ message: "Invalid layout ID" });
@@ -74,10 +87,10 @@ const createLayout = async (req, res) => {
     let layoutFile = req.body.layoutFile || "";
 
     if (req.files?.previewImage?.[0]) {
-      previewImage = `${BACKEND_ORIGIN}/uploads/layouts/${req.files.previewImage[0].filename}`;
+      previewImage = uploadPath("layouts", req.files.previewImage[0].filename);
     }
     if (req.files?.layoutFile?.[0]) {
-      layoutFile = `${BACKEND_ORIGIN}/uploads/layouts/${req.files.layoutFile[0].filename}`;
+      layoutFile = uploadPath("layouts", req.files.layoutFile[0].filename);
     }
 
     const layout = await Layout.create({
@@ -94,7 +107,9 @@ const createLayout = async (req, res) => {
           : true,
     });
 
-    res.status(201).json({ message: "Layout created successfully", layout });
+    res
+      .status(201)
+      .json({ message: "Layout created successfully", layout: withPublicUrls(layout) });
   } catch (error) {
     console.error("Create layout error:", error);
     res.status(500).json({ message: "Failed to create layout" });
@@ -129,15 +144,17 @@ const updateLayout = async (req, res) => {
     }
 
     if (req.files?.previewImage?.[0]) {
-      layout.previewImage = `${BACKEND_ORIGIN}/uploads/layouts/${req.files.previewImage[0].filename}`;
+      layout.previewImage = uploadPath("layouts", req.files.previewImage[0].filename);
     }
     if (req.files?.layoutFile?.[0]) {
-      layout.layoutFile = `${BACKEND_ORIGIN}/uploads/layouts/${req.files.layoutFile[0].filename}`;
+      layout.layoutFile = uploadPath("layouts", req.files.layoutFile[0].filename);
     }
 
     await layout.save();
 
-    res.status(200).json({ message: "Layout updated successfully", layout });
+    res
+      .status(200)
+      .json({ message: "Layout updated successfully", layout: withPublicUrls(layout) });
   } catch (error) {
     console.error("Update layout error:", error);
     res.status(400).json({ message: "Failed to update layout" });

@@ -1,11 +1,7 @@
 import axios from "axios";
+import { apiUrl, authHeaders } from "../config";
 
-const API_BASE_URL = "http://localhost:5000/api/layouts";
-
-const authHeaders = () => {
-  const token = localStorage.getItem("token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
+const API_BASE_URL = apiUrl("/api/layouts");
 
 export const getLayouts = async (filters = {}) => {
   const params = {};

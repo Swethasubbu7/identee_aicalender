@@ -1,0 +1,28 @@
+{
+ "familyCode": "SPL-002",
+ "familyName": "Special Die-Cut (spl cal 1)",
+ "cutType": "special-die-cut",
+ "sizeCode": "12x18",
+ "pageIndex": 0,
+ "cutlineSource": "design",
+ "cutlineObjectId": "p1-10",
+ "registration": { "artObjectId": "p1-11", "cutlineObjectId": "p1-12" },
+ "excludedObjectIds": ["p1-16", "p1-12"],
+ "regions": [
+  { "role": "BACKGROUND_AREA", "objectIds": ["p1-2", "p1-6"] },
+  { "role": "NAME_TEXT", "objectIds": ["p1-13"], "textStyle": { "fontFamily": "Cambria-Bold" } },
+  { "role": "TEXT_LINE_1", "objectIds": ["p1-14"], "binding": "productList", "textStyle": { "fontFamily": "FranklinGothic-Heavy" } },
+  { "role": "TEXT_LINE_2", "objectIds": ["p1-15"], "binding": "address", "textStyle": { "fontFamily": "FranklinGothic-Heavy" } },
+  { "role": "CALENDAR_AREA", "objectIds": ["p1-11"] },
+  { "role": "CAKE_MOUNT", "objectIds": ["p1-11"] }
+ ],
+ "notes": {
+  "source": "spl cal 1 .pdf + spl cal 1 laser (1).pdf (received 2026-10-15)",
+  "p1-10": "stroked cutline drawn beside the page (294.6 x 466.2 mm); placed by the cake twin p1-12 <-> p1-11",
+  "p1-2/p1-6": "the whole artwork: two copies of one 993x1572 raster (~86 DPI) incl. the sample deity",
+  "p1-13": "business name, real text (Cambria-Bold)",
+  "p1-14/p1-15": "street line and city/PIN line on the orange strip p1-9 (strip stays as artwork)",
+  "p1-16": "\"4X5 INCHES\" guide label - excluded from print",
+  "size": "cutline as drawn = laser file; NOT corrected to the 304.8 x 457.2 nominal"
+ }
+}

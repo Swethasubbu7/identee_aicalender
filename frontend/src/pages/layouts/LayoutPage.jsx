@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -17,28 +17,32 @@ import AppSidebar from "../../components/AppSidebar";
 import LayoutCard from "./LayoutCard";
 import LayoutPreviewModal from "./LayoutPreviewModal";
 import UploadLayoutModal from "./UploadLayoutModal";
+import ProductionLayoutCard from "./production/ProductionLayoutCard";
+import ProductionLayoutDialog from "./production/ProductionLayoutDialog";
+import { listLayoutVariants, deleteLayoutVariant } from "../../services/layoutVariantService";
 import { getLayouts, deactivateLayout } from "../../services/layoutService";
 import { colors, radii } from "../../identeeColors";
 import TopBar from "../../components/TopBar";
+import { CUT_TYPE_OPTIONS } from "../../constants/cutTypes";
 
 const SELECTED_LAYOUT_STORAGE_KEY = "selectedLayoutId";
 
-// NOTE: the PDF shows a "Devotional" tab/badge alongside Normal / Special Cut / Die-Cut.
-// The current backend Layout model only allows normal | special-cut | die-cut — add
-// "devotional" to ALLOWED_TYPES in layout.controller.js and the Layout schema enum
-// for this tab to filter real data; it's wired up client-side already.
+// Tabs are the three fixed cut types. ("Devotional" is a style/category,
+// not a cut type, so it is not a tab.)
 const TABS = [
   { label: "All", value: "all" },
-  { label: "Normal", value: "normal" },
-  { label: "Special Cut", value: "special-cut" },
-  { label: "Die-Cut", value: "die-cut" },
-  { label: "Devotional", value: "devotional" },
+  ...CUT_TYPE_OPTIONS.map(({ value, label }) => ({ label, value })),
 ];
 
 const LayoutPage = () => {
   const navigate = useNavigate();
 
   const [layouts, setLayouts] = useState([]);
+  // Production layouts (cut type + fixed size, mapped from production PDFs).
+  const [variants, setVariants] = useState([]);
+  const [variantsLoading, setVariantsLoading] = useState(true);
+  const [productionDialog, setProductionDialog] = useState({ open: false, variantId: null });
+  const [deletingVariantId, setDeletingVariantId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filters, setFilters] = useState({ type: "all", search: "" });
@@ -53,6 +57,32 @@ const LayoutPage = () => {
     message: "",
     severity: "success",
   });
+
+  const fetchVariants = useCallback(async () => {
+    try {
+      setVariantsLoading(true);
+      const data = await listLayoutVariants({ cutType: filters.type });
+      setVariants(data.variants || []);
+    } catch (err) {
+      console.error("Failed to fetch production layouts:", err);
+      setVariants([]);
+    } finally {
+      setVariantsLoading(false);
+    }
+  }, [filters.type]);
+
+  useEffect(() => {
+    const timer = setTimeout(fetchVariants, 0);
+    return () => clearTimeout(timer);
+  }, [fetchVariants]);
+
+  const visibleVariants = useMemo(() => {
+    const q = filters.search.trim().toLowerCase();
+    if (!q) return variants;
+    return variants.filter((v) =>
+      `${v.familyId?.code || ""} ${v.familyId?.name || ""}`.toLowerCase().includes(q),
+    );
+  }, [variants, filters.search]);
 
   const fetchLayouts = async () => {
     try {
@@ -99,6 +129,45 @@ const LayoutPage = () => {
     navigate(`/calendar/customise/${selectedLayout._id}`, {
       state: { layoutId: selectedLayout._id },
     });
+  };
+
+  // Drafts: a simple confirm. Validated / active layouts are approved
+  // production layouts, so the designer types the layout code to confirm.
+  const handleDeleteVariant = async (variant) => {
+    const code = variant.familyId?.code || "";
+    const label = `"${code || variant.familyId?.name || "layout"}" (${variant.sizeCode})`;
+    let confirmCode;
+    if (variant.status === "DRAFT") {
+      if (!window.confirm(`Delete draft layout ${label}? Its uploaded PDF and preview files are removed too. This cannot be undone.`)) {
+        return;
+      }
+    } else {
+      const typed = window.prompt(
+        `${label} is ${variant.status === "ACTIVE" ? "ACTIVE (used by designers and AI Generate)" : variant.status}.\n` +
+          `Deleting it removes the layout, its production PDF and preview files. This cannot be undone.\n\n` +
+          `Type the layout code ${code} to delete it:`,
+      );
+      if (typed === null) return;
+      if (typed.trim() !== code) {
+        setSnackbar({ open: true, message: "Layout code did not match — nothing was deleted.", severity: "info" });
+        return;
+      }
+      confirmCode = typed.trim();
+    }
+    setDeletingVariantId(variant._id);
+    try {
+      await deleteLayoutVariant(variant._id, confirmCode);
+      setSnackbar({ open: true, message: "Layout deleted", severity: "success" });
+      fetchVariants();
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.message || "Could not delete the layout",
+        severity: "error",
+      });
+    } finally {
+      setDeletingVariantId(null);
+    }
   };
 
   const handleUploadSuccess = () => {
@@ -184,7 +253,7 @@ const LayoutPage = () => {
               <Button
                 variant="contained"
                 startIcon={<AddIcon />}
-                onClick={() => setUploadOpen(true)}
+                onClick={() => setProductionDialog({ open: true, variantId: null })}
                 sx={{
                   background: colors.primary,
                   borderRadius: `${radii.md}px`,
@@ -195,7 +264,15 @@ const LayoutPage = () => {
                   },
                 }}
               >
-                Upload Layout
+                Add Production Layout
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<AddIcon />}
+                onClick={() => setUploadOpen(true)}
+                sx={{ borderRadius: `${radii.md}px` }}
+              >
+                Upload Preview Layout
               </Button>
               <TopBar />
             </Box>
@@ -272,6 +349,43 @@ const LayoutPage = () => {
             </Alert>
           )}
 
+          <Typography variant="h6" sx={{ color: colors.textPrimary, fontWeight: 700, mb: 0.5 }}>
+            Production layouts
+          </Typography>
+          <Typography variant="body2" sx={{ color: colors.textSecondary, mb: 2 }}>
+            Mapped from production PDFs. Active layouts are used by Generate All for their cut type and size.
+          </Typography>
+          {variantsLoading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+              <CircularProgress sx={{ color: colors.primary }} />
+            </Box>
+          ) : visibleVariants.length === 0 ? (
+            <Alert severity="info" sx={{ background: colors.primarySoftBg, color: colors.primary, mb: 4 }}>
+              No production layouts yet — use “Add Production Layout”.
+            </Alert>
+          ) : (
+            <Grid container spacing={3} sx={{ mb: 4 }}>
+              {visibleVariants.map((variant) => (
+                <Grid key={variant._id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
+                  <ProductionLayoutCard
+                    variant={variant}
+                    canEdit
+                    onEdit={(v) => setProductionDialog({ open: true, variantId: v._id })}
+                    onCustomise={(v) => navigate(`/calendar/production/${v._id}`)}
+                    onDelete={handleDeleteVariant}
+                    deleting={deletingVariantId === variant._id}
+                  />
+                </Grid>
+              ))}
+            </Grid>
+          )}
+
+          <Typography variant="h6" sx={{ color: colors.textPrimary, fontWeight: 700, mb: 0.5 }}>
+            Preview-only layouts
+          </Typography>
+          <Typography variant="body2" sx={{ color: colors.textSecondary, mb: 2 }}>
+            Picture-only templates used by the current customisation page.
+          </Typography>
           {loading ? (
             <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
               <CircularProgress sx={{ color: colors.primary }} />
@@ -343,6 +457,19 @@ const LayoutPage = () => {
           </Button>
         </Box>
       </Box>
+
+      {productionDialog.open && (
+      <ProductionLayoutDialog
+        key={productionDialog.variantId || "new"}
+        open={productionDialog.open}
+        variantId={productionDialog.variantId}
+        onClose={() => {
+          setProductionDialog({ open: false, variantId: null });
+          fetchVariants();
+        }}
+        onChanged={fetchVariants}
+      />
+      )}
 
       <UploadLayoutModal
         open={uploadOpen}

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -12,16 +12,14 @@ import {
   Alert,
 } from "@mui/material";
 import { uploadLayout } from "../../services/layoutService";
+import { CUT_TYPE_OPTIONS } from "../../constants/cutTypes";
 
-const TYPE_OPTIONS = [
-  { value: "normal", label: "Normal" },
-  { value: "special-cut", label: "Special Cut" },
-  { value: "die-cut", label: "Die Cut" },
-];
+const TYPE_OPTIONS = CUT_TYPE_OPTIONS;
 
-const SIZE_OPTIONS = ["A4", "A3", "12 x 18 inch", "Custom"];
+// Fixed calendar sizes (inches) — custom sizes are not offered.
+const SIZE_OPTIONS = ["10x15", "12x18", "15x24", "20x30", "30x40"];
 
-const initialState = { name: "", type: "normal", size: "A4", description: "" };
+const initialState = { name: "", type: "normal", size: "12x18", description: "" };
 
 const UploadLayoutModal = ({ open, onClose, onSuccess }) => {
   const [form, setForm] = useState(initialState);

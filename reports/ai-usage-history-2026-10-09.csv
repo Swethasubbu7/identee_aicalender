@@ -1,0 +1,36 @@
+#,Time (IST),Generation (job id),Business name,Request type,Model,Resolution,Result,Picture saved,Estimated cost (USD),Note
+1,12:48,(developer test),-,God composition test,gemini-3-pro-image,2K (2048x2048),Image returned,Yes,0.137,Claude's billing check after "billing done"
+2,12:56,6ac897140175d48dec110c8c,IDENTEE,God composition,gemini-3-pro-image,2K (2048x2048),Image returned,Yes,0.137,dc-03 15x24 - PDF exported
+3,13:12,6ac89acd977a5959d4a76850,makaliamman traders,Background (layout has AI background area),gemini-3-pro-image,2K (3168x1344),Image returned,Yes,0.137,
+4,13:12,6ac89acd977a5959d4a76850,makaliamman traders,God composition,gemini-3-pro-image,2K (2048x2048),Image returned,Yes,0.137,
+5,13:12,6ac89acd977a5959d4a76850,makaliamman traders,Product photo enhancement,gemini-3-pro-image,2K,No image returned,No,0 to 0.137,Unknown if Google charged
+6,13:18,6ac89c24977a5959d4a76851,makaliamman traders,Background,gemini-3-pro-image,2K (3168x1344),Image returned,Yes,0.137,
+7,13:18,6ac89c24977a5959d4a76851,makaliamman traders,God composition,gemini-3-pro-image,2K (2048x2048),Image returned,Yes,0.137,
+8,13:18,6ac89c24977a5959d4a76851,makaliamman traders,Product photo enhancement,gemini-3-pro-image,2K,No image returned,No,0 to 0.137,Unknown if Google charged
+9,13:24,6ac89d94977a5959d4a76852,makaliamman traders,Background,gemini-3-pro-image,2K (3168x1344),Image returned,Yes,0.137,
+10,13:24,6ac89d94977a5959d4a76852,makaliamman traders,God composition,gemini-3-pro-image,2K (2048x2048),Image returned,Yes,0.137,
+11,13:24,6ac89d94977a5959d4a76852,makaliamman traders,Product photo enhancement,gemini-3-pro-image,2K,No image returned,No,0 to 0.137,Unknown if Google charged
+12,13:36,6ac8a070977a5959d4a76853,makaliamman traders,Background,gemini-3-pro-image,2K (3168x1344),Image returned,Yes,0.137,
+13,13:36,6ac8a070977a5959d4a76853,makaliamman traders,God composition,gemini-3-pro-image,2K (2048x2048),Image returned,Yes,0.137,
+14,13:36,6ac8a070977a5959d4a76853,makaliamman traders,Product photo enhancement,gemini-3-pro-image,2K,No image returned,No,0 to 0.137,Unknown if Google charged
+15,13:39,6ac8a070977a5959d4a76853,makaliamman traders,Background (Regenerate),gemini-3-pro-image,2K (3168x1344),Image returned,Yes,0.137,
+16,13:39,6ac8a070977a5959d4a76853,makaliamman traders,God composition (Regenerate),gemini-3-pro-image,2K (2048x2048),Image returned,Yes,0.137,PDF exported
+17,13:40,6ac8a148977a5959d4a76854,makaliamman traders,Background,gemini-3-pro-image,2K (3168x1344),Image returned,Yes,0.137,
+18,13:40,6ac8a148977a5959d4a76854,makaliamman traders,God composition,gemini-3-pro-image,2K (2048x2048),Image returned,Yes,0.137,
+19,13:40,6ac8a148977a5959d4a76854,makaliamman traders,Product photo enhancement,gemini-3-pro-image,2K,No image returned,No,0 to 0.137,Unknown if Google charged
+20,13:59,6ac8a5cd977a5959d4a76856,(same project),God composition,gemini-3-pro-image,2K (2048x2048),Image returned,Yes,0.137,
+21,13:59,6ac8a5cd977a5959d4a76856,(same project),Product photo enhancement,gemini-3-pro-image,2K (1888x2266),Image returned,Yes,0.137,
+22,14:01,6ac8a5cd977a5959d4a76856,(same project),Background,gemini-3-pro-image,2K,Timed out after 2 min (app stopped waiting),No,0 to 0.137,Google may have finished and charged
+23,14:03,6ac8a5cd977a5959d4a76856,(same project),Background (automatic retry),gemini-3-pro-image,2K,Timed out after 2 min (app stopped waiting),No,0 to 0.137,Old automatic retry - now removed
+24,14:06,6ac8a75c977a5959d4a76857,(same project),God composition,gemini-3-pro-image,2K (2048x2048),Image returned,Yes,0.137,
+25,14:06,6ac8a75c977a5959d4a76857,(same project),Product photo enhancement,gemini-3-pro-image,2K (1888x2266),Image returned,Yes,0.137,
+26,14:09,6ac8a75c977a5959d4a76857,(same project),Background,gemini-3-pro-image,2K,Cut off by server restart (Claude edited backend files),No,0 to 0.137,Google may have finished and charged
+27,14:10,6ac8a85c8210236cb3368249,identeee,God composition,gemini-3-pro-image,2K (2048x2048),Image returned,Yes,0.137,
+28,14:10,6ac8a85c8210236cb3368249,identeee,Product photo enhancement,gemini-3-pro-image,2K (1888x2266),Image returned,Yes,0.137,
+29,14:14,6ac8a85c8210236cb3368249,identeee,Background,gemini-3-pro-image,2K (3168x1344),Image returned,Yes,0.137,PDF exported 3 times
+30,14:13,6ac8a8fb8210236cb336824a,identeee,Product photo enhancement,gemini-3-pro-image,2K (1888x2266),Image returned,Yes,0.137,
+31,14:13,6ac8a8fb8210236cb336824a,identeee,Background,gemini-3-pro-image,2K (3168x1344),Image returned,Yes,0.137,
+32,14:17,6ac8a8fb8210236cb336824a,identeee,God composition,gemini-3-pro-image,2K,Timed out after 5 min (app stopped waiting),No,0 to 0.137,Google may have finished and charged
+,,,,,,,,,,
+,TOTAL,,,32 requests,,,23 images returned,,"3.15 confirmed + up to 1.23 unconfirmed = 3.15 to 4.38 USD","about Rs 280-390 before tax (at about Rs 88/USD); about Rs 330-460 with 18% GST"
+,NOT CHARGED,,,11 requests on 8-9 Oct (morning),,,Rejected - key was on free plan (quota 0),,0,

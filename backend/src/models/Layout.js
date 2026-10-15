@@ -6,7 +6,9 @@ const layoutSchema = new mongoose.Schema(
     type: {
       type: String,
       required: true,
-      enum: ["normal", "special-cut", "die-cut"],
+      // "special-cut" is the legacy spelling kept so old documents still
+      // load; run seed/migrateLegacyLayouts.js to rename it.
+      enum: ["normal", "die-cut", "special-die-cut", "special-cut"],
     },
     size: { type: String, required: true, trim: true },
     description: { type: String, trim: true, default: "" },

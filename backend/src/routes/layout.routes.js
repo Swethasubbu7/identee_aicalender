@@ -38,9 +38,10 @@ const handleUpload = (req, res, next) => {
 router.get("/", getLayouts);
 router.get("/:id", getLayoutById);
 
-// Protected — designer/staff management
-router.post("/", verifyToken, handleUpload, createLayout);
-router.put("/:id", verifyToken, handleUpload, updateLayout);
-router.delete("/:id", verifyToken, deleteLayout);
+// Protected — any signed-in designer
+const signedIn = [verifyToken];
+router.post("/", ...signedIn, handleUpload, createLayout);
+router.put("/:id", ...signedIn, handleUpload, updateLayout);
+router.delete("/:id", ...signedIn, deleteLayout);
 
 module.exports = router;

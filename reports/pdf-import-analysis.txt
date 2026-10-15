@@ -1,0 +1,253 @@
+
+■ normal cal .pdf  (5 page(s), read in 21.7 s)  + laser normal cal laser.pdf (5 page(s))
+  p1 normal 10x15: page 762×1016 mm · mixed · 6 paths, 5 images, 4 text
+      cutline AUTO +registration · cake AUTO · text AUTO [CenturyGothic-Bold, Cambria-Bold] · lowest raster 130 DPI · guide labels 1
+      laser p1: cutline 254×382 mm · cake H×W · design vs laser 0 mm · placement: cake (exact)
+      → AUTO: Cutline and cake detected automatically; map the text and god areas.
+  p2 normal 12x18: page 762×1016 mm · mixed · 6 paths, 5 images, 4 text
+      cutline AUTO +registration · cake AUTO · text AUTO [CenturyGothic-Bold, Cambria-Bold] · lowest raster 108 DPI · guide labels 1
+      laser p2: cutline 305×458 mm · cake H×W · design vs laser 0 mm · placement: cake (exact)
+      → AUTO: Cutline and cake detected automatically; map the text and god areas.
+  p3 normal 15x24: page 762×1016 mm · mixed · 6 paths, 3 images, 4 text
+      cutline AUTO +registration · cake AUTO · text AUTO [CenturyGothic-Bold, Cambria-Bold] · lowest raster 81 DPI · guide labels 1
+      laser p3: cutline 381×610 mm · cake H×W · design vs laser 0 mm · placement: cake (exact)
+      → AUTO: Cutline and cake detected automatically; map the text and god areas.
+  p4 normal 20x30: page 762×1016 mm · mixed · 6 paths, 5 images, 4 text
+      cutline AUTO +registration · cake MANUAL · text AUTO [CenturyGothic-Bold, Cambria-Bold] · lowest raster 65 DPI · guide labels 1
+      laser p4: cutline 507×762 mm · cake none · design vs laser 0 mm · placement: artwork-bounds (needs confirmation)
+      → MANUAL: Importable: needs manual mapping / confirmation (cake MANUAL).
+  p5 normal 30x40: page 762×1016 mm · mixed · 6 paths, 5 images, 4 text
+      cutline AUTO +registration · cake AUTO (a rotated cake rectangle exists) · text AUTO [Cambria-Bold, CenturyGothic-Bold] · lowest raster 43 DPI · guide labels 1
+      laser p5: cutline 762×1016 mm · cake rotated · design vs laser 0 mm · placement: cake (exact)
+      → AUTO: Cutline and cake detected automatically; map the text and god areas.
+
+■ dc cal .pdf  (4 page(s), read in 41.0 s)  + laser dc cal laser.pdf (4 page(s))
+  p1 die-cut 12x18: page 762×1016 mm · mixed · 5 paths, 3 images, 4 text
+      cutline AUTO +registration · cake AUTO · text AUTO [Cinzel-Black] · lowest raster 129 DPI · guide labels 1
+      laser p1: cutline 305×457 mm · cake H×W · design vs laser 0.04 mm · placement: cake (exact)
+      → AUTO: Cutline and cake detected automatically; map the text and god areas.
+  p2 die-cut 15x24: page 762×1016 mm · mixed · 6 paths, 3 images, 4 text
+      cutline AUTO +registration · cake AUTO · text AUTO [Cinzel-Black] · lowest raster 103 DPI · guide labels 1
+      laser p2: cutline 381×610 mm · cake H×W · design vs laser 0.05 mm · placement: cake (exact)
+      → AUTO: Cutline and cake detected automatically; map the text and god areas.
+  p3 die-cut 15x24: page 762×1016 mm · mixed · 6 paths, 3 images, 4 text
+      cutline LASER · cake LASER · text AUTO [Cinzel-Black] · lowest raster 77 DPI · guide labels 1
+      laser p3: cutline 381×610 mm · cake H×W
+      → MANUAL: Importable: needs manual mapping / confirmation (cutline LASER, cake LASER).
+  p4 die-cut 30x40: page 762×1016 mm · mixed · 6 paths, 3 images, 4 text
+      cutline AUTO +registration · cake AUTO (a rotated cake rectangle exists) · text AUTO [Cinzel-Black] · lowest raster 58 DPI · guide labels 1
+      laser p4: cutline 762×1016 mm · cake rotated · design vs laser 0.01 mm · placement: cake (exact)
+      → AUTO: Cutline and cake detected automatically; map the text and god areas.
+
+■ spl cal .pdf  (4 page(s), read in 10.5 s)  + laser spl cal laser.pdf (4 page(s))
+  p1 special-die-cut 12x18: page 762×1016 mm · mixed · 3960 paths, 6 images, 2 text (truncated)
+      cutline CONFLICT +registration · cake AUTO · text AUTO [ArialRoundedMTBold] · lowest raster 59 DPI · guide labels 1
+      laser p1: cutline 305×457 mm · cake H×W · design vs laser 52.36 mm · placement: cake (exact)
+      → MANUAL: The design and laser cutlines differ by 52.36 mm: check which file is correct (importable as a draft).
+  p2: 762×1016 mm — no special-die-cut cutline of a catalogue size found (laser page neither) · near-size outline: 381×585.8 mm (near 15x24) → DRAFT only (admin chooses the size, maps the artwork)
+  p3 special-die-cut 20x30: page 762×1016 mm · mixed · 3960 paths, 6 images, 2 text (truncated)
+      cutline CONFLICT +registration · cake MANUAL · text AUTO [ArialRoundedMTBold] · lowest raster 34 DPI · guide labels 1
+      laser p3: cutline 716×1016 mm (NOT the catalogue size) · cake none · design vs laser 331.16 mm
+      → MANUAL: The design and laser cutlines differ by 331.16 mm: check which file is correct (importable as a draft).
+  p4 special-die-cut 12x18: page 762×1016 mm · mixed · 3960 paths, 6 images, 2 text (truncated)
+      cutline LASER · cake LASER · text AUTO [ArialRoundedMTBold] · lowest raster 24 DPI · guide labels 1
+      laser p4: cutline 303×456 mm · cake H×W
+      → MANUAL: Importable: needs manual mapping / confirmation (cutline LASER, cake LASER).
+
+■ spl.pdf  (1 page(s), read in 0.8 s)  + laser spl 1 12 x18 laser.pdf (1 page(s))
+  p1 special-die-cut 12x18: page 762×1016 mm · mixed · 3978 paths, 1 images, 3 text (truncated)
+      cutline AUTO +registration · cake AUTO · text AUTO [ArialRoundedMTBold, BerlinSansFB-Bold] · lowest raster 85 DPI · guide labels 1
+      laser p1: cutline 305×457 mm · cake H×W · design vs laser 0.01 mm · placement: cake (exact)
+      → AUTO: Cutline and cake detected automatically; map the text and god areas.
+
+■ ganesh cal .pdf  (4 page(s), read in 29.5 s)
+  p1 die-cut 12x18: page 1016×762 mm · mixed · 5 paths, 8 images, 6 text
+      cutline AUTO · cake MANUAL · text AUTO [CenturyGothic-Bold, Cambria-Bold] · lowest raster 85 DPI · guide labels 0
+      → MANUAL: Importable: needs manual mapping / confirmation (cake MANUAL).
+  p2 die-cut 12x18: page 1016×762 mm · mixed · 5 paths, 10 images, 3 text
+      cutline AUTO · cake MANUAL · text AUTO [CenturyGothic-Bold, Cambria-Bold] · lowest raster 99 DPI · guide labels 0
+      → MANUAL: Importable: needs manual mapping / confirmation (cake MANUAL).
+  p3 die-cut 12x18: page 1016×762 mm · mixed · 3952 paths, 8 images, 2 text (truncated)
+      cutline AUTO · cake MANUAL · text AUTO [CenturyGothic-Bold, Cambria-Bold] · lowest raster 145 DPI · guide labels 0
+      → MANUAL: Importable: needs manual mapping / confirmation (cake MANUAL).
+  p4 die-cut 12x18: page 1016×762 mm · mixed · 3 paths, 6 images, 2 text
+      cutline AUTO · cake MANUAL · text AUTO [CenturyGothic-Bold, Cambria-Bold] · lowest raster 136 DPI · guide labels 0
+      → MANUAL: Importable: needs manual mapping / confirmation (cake MANUAL).
+
+■ 2 SIZE .pdf  (1 page(s), read in 4.2 s)  + laser 2 SIZE LASER .pdf (2 page(s))
+  p1 die-cut 12x18: page 508×762 mm · mixed · 7 paths, 7 images, 7 text
+      cutline AUTO +registration · cake AUTO · text AUTO [CenturyGothic-Bold, Cambria-Bold] · lowest raster 85 DPI · guide labels 1
+      laser p1: cutline 305×457 mm · cake none · design vs laser 0.02 mm
+      → AUTO: Cutline and cake detected automatically; map the text and god areas.
+
+■ 2 SIZE 1.pdf  (1 page(s), read in 8.2 s)
+  p1 die-cut 15x24: page 508×762 mm · mixed · 3962 paths, 6 images, 3 text (truncated)
+      cutline AUTO +registration · cake AUTO · text AUTO [CenturyGothic-Bold, Cambria-Bold] · lowest raster 112 DPI · guide labels 1
+      → AUTO: Cutline and cake detected automatically; map the text and god areas.
+
+■ IDENTEE-die-cut-15x24-dc-03-PRINT.pdf  (1 page(s), read in 3.5 s)  + laser IDENTEE-die-cut-15x24-dc-03-LASER-CUTLINE.pdf (1 page(s))
+  p1 die-cut 15x24: page 381×611.39 mm · flattened · 0 paths, 1 images, 0 text
+      cutline LASER · cake LASER · text MANUAL · lowest raster 300 DPI · guide labels 0
+      laser p1: cutline 381×611 mm · cake H×W · placement: artwork-bounds (needs confirmation)
+      → MANUAL: Importable: needs manual mapping / confirmation (cutline LASER, cake LASER, text MANUAL).
+
+■ calendar-normal-12x18-NCN-02-PRINT.pdf  (1 page(s), read in 1.8 s)  + laser calendar-normal-12x18-NCN-02-LASER-CUTLINE.pdf (1 page(s))
+  p1 normal 12x18: page 324.8×477.98 mm · flattened · 0 paths, 1 images, 0 text
+      cutline LASER · cake LASER · text MANUAL · lowest raster 300 DPI · guide labels 0
+      laser p1: cutline 305×458 mm · cake H×W · placement: artwork-bounds (needs confirmation)
+      → MANUAL: Importable: needs manual mapping / confirmation (cutline LASER, cake LASER, text MANUAL).
+
+■ identeee-die-cut-12x18-DC-MURUGAN-LOTUS-PRINT.pdf  (1 page(s), read in 2.4 s)  + laser identeee-die-cut-12x18-DC-MURUGAN-LOTUS-LASER-CUTLINE.pdf (1 page(s))
+  p1 die-cut 12x18: page 304.8×457.19 mm · flattened · 0 paths, 1 images, 0 text
+      cutline LASER · cake LASER · text MANUAL · lowest raster 300 DPI · guide labels 0
+      laser p1: cutline 305×457 mm · cake H×W · placement: artwork-bounds (needs confirmation)
+      → MANUAL: Importable: needs manual mapping / confirmation (cutline LASER, cake LASER, text MANUAL).
+
+■ spl cal 2027_compressed (1).pdf  (39 page(s), read in 9.7 s)
+  p1: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p2: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p3: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p4: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p5: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p6: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p7: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p8: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p9: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p10: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p11: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p12: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p13: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p14: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p15: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p16: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p17: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p18: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p19: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p20: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p21: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p22: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p23: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p24: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p25: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p26: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p27: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p28: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p29: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p30: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p31: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p32: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p33: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p34: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p35: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p36: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p37: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p38: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p39: 203.2×254 mm — no special-die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+
+■ NORMAL CAL 2027_compressed.pdf  (83 page(s), read in 17.5 s)
+  p1: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p2: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p3: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p4: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p5: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p6: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p7: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p8: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p9: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p10: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p11: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p12: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p13: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p14: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p15: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p16: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p17: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p18: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p19: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p20: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p21: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p22: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p23: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p24: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p25: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p26: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p27: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p28: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p29: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p30: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p31: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p32: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p33: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p34: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p35: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p36: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p37: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p38: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p39: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p40: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p41: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p42: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p43: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p44: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p45: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p46: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p47: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p48: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p49: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p50: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p51: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p52: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p53: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p54: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p55: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p56: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p57: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p58: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p59: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p60: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p61: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p62: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p63: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p64: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p65: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p66: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p67: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p68: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p69: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p70: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p71: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p72: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p73: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p74: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p75: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p76: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p77: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p78: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p79: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p80: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p81: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p82: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p83: 203.2×254 mm — no normal cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+
+■ dc calendar 2026.pdf  (19 page(s), read in 33.0 s)
+  p1: 254×381 mm — no die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p2: 254×381 mm — no die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p3: 254×381 mm — no die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p4: 254×381 mm — no die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p5: 254×381 mm — no die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p6: 254×381 mm — no die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p7: 254×381 mm — no die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p8: 254×381 mm — no die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p9: 254×381 mm — no die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p10: 254×381 mm — no die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p11: 254×381 mm — no die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p12: 254×381 mm — no die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p13: 254×381 mm — no die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p14: 254×381 mm — no die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p15: 254×381 mm — no die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p16: 254×381 mm — no die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p17: 254×381 mm — no die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p18: 254×381 mm — no die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+  p19: 254×381 mm — no die-cut cutline of a catalogue size found → DRAFT only (admin chooses the size, maps the artwork)
+
+Pages: 164 · AUTO 10 · MANUAL 12 · DRAFT 142 · CANNOT 0
