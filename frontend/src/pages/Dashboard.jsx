@@ -1,10 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
   Typography,
   Button,
-  Chip,
   Badge,
   Avatar,
   CircularProgress,
@@ -15,17 +14,11 @@ import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import AppSidebar from "../components/AppSidebar";
+import DesignCard from "../components/DesignCard";
+import GeneratedDesignCard from "../components/GeneratedDesignCard";
+import { flattenGeneratedDesigns } from "../utils/generatedDesigns";
+import { listAiCalendarJobs } from "../services/aiCalendarService";
 import { getMyDesigns } from "../services/calendarDesignService";
-
-const formatDate = (isoString) => {
-  if (!isoString) return "";
-  const d = new Date(isoString);
-  return d.toLocaleDateString(undefined, {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-};
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -33,14 +26,16 @@ const Dashboard = () => {
   const [designs, setDesigns] = useState([]);
   const [loadingDesigns, setLoadingDesigns] = useState(true);
   const [designsError, setDesignsError] = useState("");
+  const [generated, setGenerated] = useState([]);
 
-  const user = useMemo(() => {
+  // Read once on mount (the signed-in user does not change on this page).
+  const [user] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem("user")) || {};
     } catch {
       return {};
     }
-  }, []);
+  });
 
   const displayName = user?.name || "Designer";
   const initial = displayName.charAt(0).toUpperCase();
@@ -60,6 +55,9 @@ const Dashboard = () => {
       }
     };
     fetchDesigns();
+    listAiCalendarJobs({ limit: 8 })
+      .then((jobs) => setGenerated(flattenGeneratedDesigns(jobs).slice(0, 8)))
+      .catch(() => setGenerated([]));
   }, []);
 
   return (
@@ -180,13 +178,36 @@ const Dashboard = () => {
                 variant="outlined"
                 color="primary"
                 endIcon={<ArrowForwardIcon />}
-                onClick={() => navigate("/layouts")}
+                onClick={() => navigate("/drafts")}
               >
                 View Drafts
               </Button>
             </Box>
           </Box>
         </Box>
+
+        {/* AI designs made with Generate */}
+        {generated.length > 0 && (
+          <>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+              <Typography variant="h6" sx={{ color: "#2A2620", fontWeight: 700 }}>
+                Generated Designs
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{ color: "#B08D35", cursor: "pointer", fontWeight: 600 }}
+                onClick={() => navigate("/generated")}
+              >
+                View All
+              </Typography>
+            </Box>
+            <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 2.5, mb: 4 }}>
+              {generated.map(({ job, variation }) => (
+                <GeneratedDesignCard key={`${job._id}:${variation.index}`} job={job} variation={variation} onOpen={navigate} />
+              ))}
+            </Box>
+          </>
+        )}
 
         {/* Recent Projects — real data */}
         <Box
@@ -203,7 +224,7 @@ const Dashboard = () => {
           <Typography
             variant="body2"
             sx={{ color: "#B08D35", cursor: "pointer", fontWeight: 600 }}
-            onClick={() => navigate("/layouts")}
+            onClick={() => navigate("/drafts")}
           >
             View All
           </Typography>
@@ -243,72 +264,13 @@ const Dashboard = () => {
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
               gap: 2.5,
               mb: 4,
             }}
           >
             {designs.map((design) => (
-              <Box
-                key={design._id}
-                sx={{
-                  background: "#FFFFFF",
-                  border: "1px solid rgba(176,141,53,0.15)",
-                  borderRadius: 3,
-                  overflow: "hidden",
-                  cursor: "pointer",
-                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                  "&:hover": {
-                    transform: "translateY(-4px)",
-                    boxShadow: "0 8px 20px rgba(176,141,53,0.15)",
-                  },
-                }}
-                onClick={() =>
-                  navigate(`/calendar/customise/${design.layoutId?._id}`)
-                }
-              >
-                <Box
-                  component="img"
-                  src={
-                    design.layoutId?.previewImage ||
-                    "https://placehold.co/300x300?text=No+Preview"
-                  }
-                  alt={design.layoutId?.name || "Calendar design"}
-                  sx={{
-                    width: "100%",
-                    height: 140,
-                    objectFit: "cover",
-                    display: "block",
-                  }}
-                />
-                <Box sx={{ p: 1.5 }}>
-                  <Typography
-                    variant="body2"
-                    sx={{ color: "#2A2620", fontWeight: 600 }}
-                    noWrap
-                  >
-                    {design.layoutId?.name || "Untitled Calendar"}
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    sx={{ color: "#A9A296", display: "block", mb: 1 }}
-                  >
-                    Last edited: {formatDate(design.updatedAt)}
-                  </Typography>
-                  <Chip
-                    label={design.status === "saved" ? "Completed" : "Draft"}
-                    size="small"
-                    sx={{
-                      background:
-                        design.status === "saved"
-                          ? "rgba(56,142,60,0.12)"
-                          : "rgba(176,141,53,0.12)",
-                      color: design.status === "saved" ? "#2e7d32" : "#8a6d1f",
-                      fontWeight: 600,
-                    }}
-                  />
-                </Box>
-              </Box>
+              <DesignCard key={design._id} design={design} onOpen={navigate} />
             ))}
           </Box>
         )}

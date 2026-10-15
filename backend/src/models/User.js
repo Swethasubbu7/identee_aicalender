@@ -21,9 +21,11 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
 
+    // Kept only for existing accounts: the app has no admin role and gives
+    // every signed-in designer full access (role is not checked anywhere).
     role: {
       type: String,
-      enum: ["STAFF"],
+      enum: ["STAFF", "ADMIN"],
       default: "STAFF",
     },
 

@@ -1,0 +1,15 @@
+[
+  { "design": "C:/Users/HP/Downloads/normal cal .pdf", "laser": "C:/Users/HP/Downloads/normal cal laser.pdf", "cutType": "normal" },
+  { "design": "C:/Users/HP/Downloads/dc cal .pdf", "laser": "C:/Users/HP/Downloads/dc cal laser.pdf", "cutType": "die-cut" },
+  { "design": "C:/Users/HP/Downloads/spl cal .pdf", "laser": "C:/Users/HP/Downloads/spl cal laser.pdf", "cutType": "special-die-cut" },
+  { "design": "C:/Users/HP/Downloads/spl.pdf", "laser": "C:/Users/HP/Downloads/spl 1 12 x18 laser.pdf", "cutType": "special-die-cut" },
+  { "design": "C:/Users/HP/Downloads/ganesh cal .pdf", "cutType": "die-cut" },
+  { "design": "C:/Users/HP/Downloads/2 SIZE .pdf", "laser": "C:/Users/HP/Downloads/2 SIZE LASER .pdf", "cutType": "die-cut" },
+  { "design": "C:/Users/HP/Downloads/2 SIZE 1.pdf", "laser": "C:/Users/HP/Downloads/2 SIZE LASER 1.pdf", "cutType": "die-cut" },
+  { "design": "C:/Users/HP/Downloads/IDENTEE-die-cut-15x24-dc-03-PRINT.pdf", "laser": "C:/Users/HP/Downloads/IDENTEE-die-cut-15x24-dc-03-LASER-CUTLINE.pdf", "cutType": "die-cut" },
+  { "design": "C:/Users/HP/Downloads/calendar-normal-12x18-NCN-02-PRINT.pdf", "laser": "C:/Users/HP/Downloads/calendar-normal-12x18-NCN-02-LASER-CUTLINE.pdf", "cutType": "normal" },
+  { "design": "C:/Users/HP/Downloads/identeee-die-cut-12x18-DC-MURUGAN-LOTUS-PRINT.pdf", "laser": "C:/Users/HP/Downloads/identeee-die-cut-12x18-DC-MURUGAN-LOTUS-LASER-CUTLINE.pdf", "cutType": "die-cut" },
+  { "design": "C:/Users/HP/Downloads/spl cal 2027_compressed (1).pdf", "cutType": "special-die-cut" },
+  { "design": "C:/Users/HP/Downloads/NORMAL CAL 2027_compressed.pdf", "cutType": "normal" },
+  { "design": "C:/Users/HP/Downloads/dc calendar 2026.pdf", "cutType": "die-cut" }
+]

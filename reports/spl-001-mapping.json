@@ -1,0 +1,195 @@
+{
+ "variantId": "6ace18e58ad0d5a9ff5eec54",
+ "familyCode": "SPL-001",
+ "cutType": "special-die-cut",
+ "sizeCode": "12x18",
+ "pageIndex": 0,
+ "cutlineSource": "design",
+ "cutlineObjectId": "p1-0",
+ "registration": {
+  "artObjectId": "p1-7320",
+  "cutlineObjectId": "p1-7321"
+ },
+ "excludedObjectIds": [
+  "p1-7323"
+ ],
+ "regions": [
+  {
+   "role": "BACKGROUND_AREA",
+   "objectIds": [
+    "p1-4"
+   ]
+  },
+  {
+   "role": "NAME_TEXT",
+   "objectIds": [
+    "p1-26"
+   ],
+   "textStyle": {
+    "fontFamily": "ArialRoundedMTBold"
+   }
+  },
+  {
+   "role": "TEXT_LINE_1",
+   "objectIds": [
+    "p1-7322",
+    "p1-7195"
+   ],
+   "binding": "productList"
+  },
+  {
+   "role": "TEXT_LINE_2",
+   "objectIds": [
+    "p1-7196",
+    "p1-7197",
+    "p1-7198",
+    "p1-7199",
+    "p1-7200",
+    "p1-7201",
+    "p1-7202",
+    "p1-7203",
+    "p1-7204",
+    "p1-7205",
+    "p1-7206",
+    "p1-7207",
+    "p1-7208",
+    "p1-7209",
+    "p1-7210",
+    "p1-7211",
+    "p1-7212",
+    "p1-7213",
+    "p1-7214",
+    "p1-7215",
+    "p1-7216",
+    "p1-7217",
+    "p1-7218",
+    "p1-7219",
+    "p1-7220",
+    "p1-7221",
+    "p1-7222",
+    "p1-7223",
+    "p1-7224",
+    "p1-7225",
+    "p1-7226",
+    "p1-7227",
+    "p1-7228",
+    "p1-7229",
+    "p1-7230",
+    "p1-7231",
+    "p1-7232",
+    "p1-7233",
+    "p1-7234",
+    "p1-7235",
+    "p1-7236",
+    "p1-7237",
+    "p1-7238",
+    "p1-7239",
+    "p1-7240",
+    "p1-7241",
+    "p1-7242",
+    "p1-7243",
+    "p1-7244",
+    "p1-7245",
+    "p1-7246",
+    "p1-7247",
+    "p1-7248",
+    "p1-7249",
+    "p1-7250",
+    "p1-7251",
+    "p1-7252",
+    "p1-7253",
+    "p1-7254",
+    "p1-7255",
+    "p1-7256",
+    "p1-7257",
+    "p1-7258",
+    "p1-7259",
+    "p1-7260",
+    "p1-7261",
+    "p1-7262",
+    "p1-7263",
+    "p1-7264",
+    "p1-7265",
+    "p1-7266",
+    "p1-7267",
+    "p1-7268",
+    "p1-7269",
+    "p1-7270",
+    "p1-7271",
+    "p1-7272",
+    "p1-7273",
+    "p1-7274",
+    "p1-7275",
+    "p1-7276",
+    "p1-7277",
+    "p1-7278",
+    "p1-7279",
+    "p1-7280",
+    "p1-7281",
+    "p1-7282",
+    "p1-7283",
+    "p1-7284",
+    "p1-7285",
+    "p1-7286",
+    "p1-7287",
+    "p1-7288",
+    "p1-7289",
+    "p1-7290",
+    "p1-7291",
+    "p1-7292",
+    "p1-7293",
+    "p1-7294",
+    "p1-7295",
+    "p1-7296",
+    "p1-7297",
+    "p1-7298",
+    "p1-7299",
+    "p1-7300",
+    "p1-7301",
+    "p1-7302",
+    "p1-7303",
+    "p1-7304",
+    "p1-7305",
+    "p1-7306",
+    "p1-7307",
+    "p1-7308",
+    "p1-7309",
+    "p1-7310",
+    "p1-7311",
+    "p1-7312",
+    "p1-7313",
+    "p1-7314",
+    "p1-7315",
+    "p1-7316",
+    "p1-7317",
+    "p1-7318",
+    "p1-7319"
+   ],
+   "binding": "address",
+   "textStyle": {
+    "fontFamily": "ArialRoundedMTBold"
+   }
+  },
+  {
+   "role": "CALENDAR_AREA",
+   "objectIds": [
+    "p1-7320"
+   ]
+  },
+  {
+   "role": "CAKE_MOUNT",
+   "objectIds": [
+    "p1-7320"
+   ]
+  }
+ ],
+ "notes": {
+  "source": "spl cal 12 x18.pdf (uploaded on the Layouts page as SPL-001, Perumal design); cutline unchanged",
+  "p1-0": "stroked cutline drawn beside the page; placed by the cake twin p1-7321 ↔ p1-7320",
+  "p1-4": "the whole artwork: one 1005x1536 JPEG (~83 DPI) incl. the sample deity",
+  "p1-26": "business-name plate; the name is letter outlines (no font in the file)",
+  "TEXT_LINE_2": "124 letter shapes (address converted to curves, 2 lines)",
+  "fontFamily": "working choice (the file’s only font, used by text line 1) - needs designer confirmation",
+  "p1-7323": "\"4X5 INCHES\" guide label - excluded from print"
+ }
+}

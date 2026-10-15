@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -13,8 +13,8 @@ import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutlineOutlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import GridViewOutlinedIcon from "@mui/icons-material/GridViewOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import logo from "../assets/identeelogo.jpeg";
-import { getLayouts } from "../services/layoutService";
 
 const NAV_ITEMS = [
   {
@@ -27,17 +27,21 @@ const NAV_ITEMS = [
     key: "create",
     label: "Create New Project",
     icon: AddCircleOutlineIcon,
-    // No static path: clicking this now auto-picks a layout and jumps
-    // straight into the AI Generate / Customise editor (see
-    // handleCreateNewProject below), instead of sending the user to the
-    // manual /layouts picker page.
-    path: null,
+    // New project: choose ONE approved layout on the Layouts page, then
+    // Customise → Generate AI designs (see handleCreateNewProject).
+    path: "/layouts",
+  },
+  {
+    key: "generated",
+    label: "Generated Designs",
+    icon: AutoAwesomeOutlinedIcon,
+    path: "/generated",
   },
   {
     key: "drafts",
     label: "Draft Projects",
     icon: DescriptionOutlinedIcon,
-    path: "/layouts",
+    path: "/drafts",
   },
   {
     key: "layouts",
@@ -57,13 +61,14 @@ const AppSidebar = ({ activeKey = "dashboard" }) => {
   const navigate = useNavigate();
   const [creatingProject, setCreatingProject] = useState(false);
 
-  const user = useMemo(() => {
+  // Read once on mount (the signed-in user does not change on this page).
+  const [user] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem("user")) || {};
     } catch {
       return {};
     }
-  }, []);
+  });
 
   const displayName = user?.name || "Designer";
   const initial = displayName.charAt(0).toUpperCase();
@@ -72,29 +77,12 @@ const AppSidebar = ({ activeKey = "dashboard" }) => {
     navigate(path);
   };
 
-  // "Create New Project" used to just navigate to /layouts and make the
-  // user manually pick a layout before reaching the editor. Since the
-  // Customisation page is now AI-first, this instead fetches the
-  // available layouts, takes the first one, and opens the editor for it
-  // directly. If no layouts are available (or the fetch fails), it falls
-  // back to the old /layouts picker page so the flow never dead-ends.
-  const handleCreateNewProject = async () => {
+  // Create New Project → Layouts: the designer selects ONE approved layout
+  // (its cut type and size), then customises it and generates the AI designs.
+  const handleCreateNewProject = () => {
     if (creatingProject) return;
     setCreatingProject(true);
-    try {
-      const data = await getLayouts();
-      const firstLayout = data?.layouts?.[0];
-      if (firstLayout?._id) {
-        navigate(`/calendar/customise/${firstLayout._id}`);
-      } else {
-        navigate("/layouts");
-      }
-    } catch (err) {
-      console.error("Failed to auto-select a layout:", err);
-      navigate("/layouts");
-    } finally {
-      setCreatingProject(false);
-    }
+    navigate("/layouts");
   };
 
   return (
@@ -236,7 +224,7 @@ const AppSidebar = ({ activeKey = "dashboard" }) => {
             {displayName}
           </Typography>
           <Typography variant="caption" sx={{ color: "#A9A296", fontSize: 11 }}>
-            {user?.role === "STAFF" ? "Designer" : user?.role || "Designer"}
+            Designer
           </Typography>
         </Box>
       </Box>

@@ -1,0 +1,27 @@
+{
+  "cutType": "special-die-cut",
+  "sizeCode": "12x18",
+  "familyCode": "SPL-GANESHA-OVAL",
+  "familyName": "Special Ganesha oval (DRAFT - provisional code, please confirm)",
+  "pageIndex": 0,
+  "cutlineObjectId": "p1-7163",
+  "registration": { "artObjectId": "p1-7161", "cutlineObjectId": "p1-7162" },
+  "excludedObjectIds": ["p1-7166"],
+  "regions": [
+    { "role": "BACKGROUND_AREA", "objectIds": ["p1-2"] },
+    { "role": "NAME_TEXT", "objectIds": ["p1-5"], "textStyle": { "fontFamily": "ArialRoundedMTBold" } },
+    { "role": "TEXT_LINE_1", "objectIds": ["p1-7164", "p1-6"], "binding": "productList" },
+    { "role": "TEXT_LINE_2", "objectIds": ["p1-7165"], "binding": "address" },
+    { "role": "CALENDAR_AREA", "objectIds": ["p1-7161"] },
+    { "role": "CAKE_MOUNT", "objectIds": ["p1-7161"] }
+  ],
+  "notes": {
+    "source": "spl.pdf (2026-10-13 re-export of spl 1 12 x18.pdf: identical geometry) + spl 1 12 x18 laser.pdf",
+    "p1-2": "the whole artwork: one 1024x1536 JPEG (about 85 DPI) incl. the sample Ganesha",
+    "p1-5": "business-name plate (the name itself is converted to curves, no font in the file)",
+    "NAME_TEXT.fontFamily": "working choice (the file's own font for text line 1) - needs designer confirmation",
+    "p1-7161": "cake 4H x 5W in, also the calendar area (same convention as the approved layouts)",
+    "p1-7162/p1-7163": "cake twin + cutline drawn beside the artwork (registration)",
+    "p1-7166": "\"4X5 INCHES\" guide label - excluded from print"
+  }
+}

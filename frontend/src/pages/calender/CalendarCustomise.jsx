@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Box,
@@ -29,6 +29,7 @@ import {
   autosaveDesign,
 } from "../../services/calendarDesignService";
 import { generateAIDesigns } from "../../services/aiGenerationService";
+import { getCalendarFormats } from "../../services/calendarFormatService";
 
 // NOTE: LeftPanel (the manual Tools/Text/Images/Calendar/Elements/Fonts/
 // Colors/Cut-Shape/Layout/History toolbar) and the old RightPreviewPanel
@@ -74,6 +75,12 @@ const CalendarCustomise = () => {
   const [cutType, setCutType] = useState("normal");
   const [aiThemeMatching, setAiThemeMatching] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [generatedImages, setGeneratedImages] = useState([]);
+
+  // Fixed calendar sizes for the selected cut type (no custom sizes).
+  const [formats, setFormats] = useState([]);
+  const [formatsLoading, setFormatsLoading] = useState(false);
+  const [sizeCode, setSizeCode] = useState("");
 
   const [layerState, setLayerState] = useState({
     hasCustomerImage: false,
@@ -123,6 +130,32 @@ const CalendarCustomise = () => {
     fetchAllLayouts();
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    const fetchFormats = async () => {
+      try {
+        setFormatsLoading(true);
+        const data = await getCalendarFormats(cutType);
+        if (cancelled) return;
+        const list = data?.formats || [];
+        setFormats(list);
+        // Keep the chosen size only if this cut type offers it.
+        setSizeCode((current) =>
+          list.some((f) => f.sizeCode === current) ? current : "",
+        );
+      } catch (err) {
+        console.error("Failed to load calendar sizes:", err);
+        if (!cancelled) setFormats([]);
+      } finally {
+        if (!cancelled) setFormatsLoading(false);
+      }
+    };
+    fetchFormats();
+    return () => {
+      cancelled = true;
+    };
+  }, [cutType]);
+
   const handleTemplateChange = (newLayoutId) => {
     if (newLayoutId === layoutId) return;
     navigate(`/calendar/customise/${newLayoutId}`);
@@ -138,7 +171,13 @@ const CalendarCustomise = () => {
           canvasData,
           year,
           language,
-          aiMetadata: { designerPrompt, cutType, aiThemeMatching, monthStyle },
+          aiMetadata: {
+            designerPrompt,
+            cutType,
+            sizeCode,
+            aiThemeMatching,
+            monthStyle,
+          },
         });
         setAutosaveStatus(`Autosaved at ${new Date().toLocaleTimeString()}`);
       } catch (err) {
@@ -151,6 +190,7 @@ const CalendarCustomise = () => {
     language,
     designerPrompt,
     cutType,
+    sizeCode,
     aiThemeMatching,
     monthStyle,
   ]);
@@ -195,6 +235,10 @@ const CalendarCustomise = () => {
     setCutType(val);
     scheduleAutosave();
   };
+  const handleSizeCodeChange = (val) => {
+    setSizeCode(val);
+    scheduleAutosave();
+  };
 
   // --- Canvas toolbar (undo/redo/zoom/pan/fullscreen) — unchanged -----
   const handleUndo = () => canvasApiRef.current?.undo();
@@ -210,6 +254,7 @@ const CalendarCustomise = () => {
       const aiMetadata = {
         designerPrompt,
         cutType,
+        sizeCode,
         aiThemeMatching,
         monthStyle,
       };
@@ -256,15 +301,19 @@ const CalendarCustomise = () => {
     });
   };
 
-  // --- AI Generate ("Generate Design") — single image per click for now,
-  // matches the confirmed decision to keep this at one generation per
-  // click rather than looping multiple Gemini calls. -------------------
+  // --- AI Generate ("Generate Design") — single image per click for now.
+  // Generate All (one design per approved layout for the selected cut
+  // type + size) replaces this once layout variants are imported. -------
   const handleGenerateDesigns = async () => {
     if (!uploadedImageFile) {
       setSnackbar({
         open: true,
         message: "Upload a customer image first.",
       });
+      return;
+    }
+    if (!sizeCode) {
+      setSnackbar({ open: true, message: "Select a calendar size first." });
       return;
     }
 
@@ -274,23 +323,21 @@ const CalendarCustomise = () => {
       formData.append("customerImage", uploadedImageFile);
       formData.append("designerPrompt", designerPrompt);
       formData.append("cutType", cutType);
+      formData.append("sizeCode", sizeCode);
       formData.append("year", year);
       formData.append("language", language);
       formData.append("monthStyle", monthStyle);
       formData.append("aiThemeMatching", aiThemeMatching);
       formData.append("layoutId", layoutId);
 
-      // Currently hits a stub backend endpoint (see
-      // aiGeneration.controller.js) that saves the uploaded image and
-      // echoes the settings back — no Gemini call happens yet. This
-      // verifies the full upload -> backend -> response flow ahead of
-      // the real AI integration.
       const data = await generateAIDesigns(formData);
+      const images = data?.generatedDesigns || [];
+      setGeneratedImages((prev) => [...images, ...prev]);
       setSnackbar({
         open: true,
-        message:
-          data?.message ||
-          "Received by backend — AI generation isn't wired up yet.",
+        message: images.length
+          ? "Design generated"
+          : data?.message || "No design was returned.",
       });
     } catch (err) {
       console.error("AI generate request failed:", err);
@@ -324,12 +371,15 @@ const CalendarCustomise = () => {
     );
   }
 
+  // Handlers are looked up on click: they read refs, so they are not
+  // stored in the rendered list.
+  const runHeaderAction = (key) =>
+    ({ save: handleSaveDraft, preview: handlePreview, print: handlePrintCheck, export: handleExport })[key]?.();
   const headerActions = [
     {
       key: "save",
       icon: <SaveOutlinedIcon />,
       label: "Save Draft",
-      onClick: handleSaveDraft,
       variant: "outlined",
       sx: { color: "#E9C767", borderColor: "rgba(201,162,39,0.4)" },
     },
@@ -337,7 +387,6 @@ const CalendarCustomise = () => {
       key: "preview",
       icon: <VisibilityOutlinedIcon />,
       label: "Preview",
-      onClick: handlePreview,
       variant: "outlined",
       sx: { color: "#A9A296", borderColor: "rgba(201,162,39,0.25)" },
     },
@@ -345,7 +394,6 @@ const CalendarCustomise = () => {
       key: "print",
       icon: <PrintOutlinedIcon />,
       label: "Print Check",
-      onClick: handlePrintCheck,
       variant: "outlined",
       sx: { color: "#A9A296", borderColor: "rgba(201,162,39,0.25)" },
     },
@@ -353,7 +401,6 @@ const CalendarCustomise = () => {
       key: "export",
       icon: <FileUploadOutlinedIcon />,
       label: "Export",
-      onClick: handleExport,
       variant: "contained",
       color: "primary",
     },
@@ -369,6 +416,10 @@ const CalendarCustomise = () => {
       onDesignerPromptChange={setDesignerPrompt}
       cutType={cutType}
       onCutTypeChange={handleCutTypeChange}
+      formats={formats}
+      formatsLoading={formatsLoading}
+      sizeCode={sizeCode}
+      onSizeCodeChange={handleSizeCodeChange}
       year={year}
       onYearChange={handleYearChange}
       language={language}
@@ -379,6 +430,7 @@ const CalendarCustomise = () => {
       onAiThemeMatchingChange={setAiThemeMatching}
       onGenerate={handleGenerateDesigns}
       generating={generating}
+      generatedImages={generatedImages}
     />
   );
 
@@ -462,7 +514,7 @@ const CalendarCustomise = () => {
               <IconButton
                 key={action.key}
                 size="small"
-                onClick={action.onClick}
+                onClick={() => runHeaderAction(action.key)}
                 sx={{
                   color: action.color === "primary" ? "#fff" : "#E9C767",
                   background:
@@ -480,7 +532,7 @@ const CalendarCustomise = () => {
                 color={action.color}
                 startIcon={action.icon}
                 sx={action.sx}
-                onClick={action.onClick}
+                onClick={() => runHeaderAction(action.key)}
               >
                 {action.label}
               </Button>

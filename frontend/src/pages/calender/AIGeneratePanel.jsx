@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import { useRef } from "react";
 import {
   Box,
   Typography,
@@ -20,6 +20,12 @@ import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import ChangeCircleOutlinedIcon from "@mui/icons-material/ChangeCircleOutlined";
+import { CUT_TYPE_OPTIONS } from "../../constants/cutTypes";
+
+const formatCake = (format) =>
+  format.cake?.status === "CONFIRMED"
+    ? `Cake ${format.cake.heightIn}×${format.cake.widthIn} in (H×W)`
+    : "Cake size pending";
 
 /**
  * AIGeneratePanel
@@ -36,7 +42,6 @@ import ChangeCircleOutlinedIcon from "@mui/icons-material/ChangeCircleOutlined";
 const AIGeneratePanel = ({
   // Customer image
   uploadedImagePreview,
-  hasCustomerImage,
   onUploadImage,
   onRemoveImage,
 
@@ -44,9 +49,13 @@ const AIGeneratePanel = ({
   designerPrompt,
   onDesignerPromptChange,
 
-  // Layout / cut type
+  // Cut type + fixed calendar size
   cutType,
   onCutTypeChange,
+  formats = [],
+  formatsLoading = false,
+  sizeCode,
+  onSizeCodeChange,
 
   // Year / Language / Calendar format
   year,
@@ -63,7 +72,10 @@ const AIGeneratePanel = ({
   // Generate
   onGenerate,
   generating,
+  generatedImages = [],
 }) => {
+  const selectedFormat = formats.find((f) => f.sizeCode === sizeCode);
+
   const fileInputRef = useRef(null);
 
   const handleFilePicked = (e) => {
@@ -199,12 +211,12 @@ const AIGeneratePanel = ({
 
         <Divider sx={{ my: 2.5, borderColor: "rgba(176,141,53,0.15)" }} />
 
-        {/* 3. Layout Type */}
+        {/* 3. Cut Type + fixed Calendar Size */}
         <Typography
           variant="caption"
           sx={{ color: "#7A7266", fontWeight: 700, letterSpacing: 0.5 }}
         >
-          LAYOUT TYPE
+          CUT TYPE
         </Typography>
         <ToggleButtonGroup
           value={cutType}
@@ -214,19 +226,43 @@ const AIGeneratePanel = ({
           onChange={(e, val) => val && onCutTypeChange(val)}
           sx={{ mt: 1.5, flexWrap: "wrap" }}
         >
-          <ToggleButton value="normal" sx={{ textTransform: "none", flex: 1 }}>
-            Normal
-          </ToggleButton>
-          <ToggleButton value="die-cut" sx={{ textTransform: "none", flex: 1 }}>
-            Die Cut
-          </ToggleButton>
-          <ToggleButton
-            value="special-cut"
-            sx={{ textTransform: "none", flex: 1 }}
-          >
-            Special Cut
-          </ToggleButton>
+          {CUT_TYPE_OPTIONS.map((opt) => (
+            <ToggleButton
+              key={opt.value}
+              value={opt.value}
+              sx={{ textTransform: "none", flex: 1 }}
+            >
+              {opt.label}
+            </ToggleButton>
+          ))}
         </ToggleButtonGroup>
+
+        <FormControl fullWidth sx={{ mt: 2 }} disabled={formatsLoading}>
+          <InputLabel id="calendar-size-label">Calendar Size (inches)</InputLabel>
+          <Select
+            labelId="calendar-size-label"
+            label="Calendar Size (inches)"
+            value={selectedFormat ? sizeCode : ""}
+            onChange={(e) => onSizeCodeChange(e.target.value)}
+          >
+            {formats.map((format) => (
+              <MenuItem key={format._id} value={format.sizeCode}>
+                {format.label} — {formatCake(format)}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        {!formatsLoading && formats.length === 0 && (
+          <Typography variant="caption" sx={{ color: "#c0392b", display: "block", mt: 1 }}>
+            No sizes available for this cut type yet.
+          </Typography>
+        )}
+        {selectedFormat && selectedFormat.cake?.status !== "CONFIRMED" && (
+          <Typography variant="caption" sx={{ color: "#8a6d1f", display: "block", mt: 1 }}>
+            The cake size for {selectedFormat.label} is not confirmed yet, so
+            no layouts can be approved for this size.
+          </Typography>
+        )}
 
         <Divider sx={{ my: 2.5, borderColor: "rgba(176,141,53,0.15)" }} />
 
@@ -302,6 +338,43 @@ const AIGeneratePanel = ({
           sx={{ mt: 1, alignItems: "flex-start", ml: 0 }}
         />
       </Box>
+
+      {generatedImages.length > 0 && (
+        <Box sx={{ px: 2.5, pt: 2, borderTop: "1px solid rgba(176,141,53,0.15)" }}>
+          <Typography
+            variant="caption"
+            sx={{ color: "#7A7266", fontWeight: 700, letterSpacing: 0.5 }}
+          >
+            GENERATED
+          </Typography>
+          <Box sx={{ display: "flex", gap: 1, mt: 1, overflowX: "auto" }}>
+            {generatedImages.map((img) => (
+              <Box
+                key={img.url}
+                component="a"
+                href={img.url}
+                target="_blank"
+                rel="noreferrer"
+                sx={{ flexShrink: 0 }}
+              >
+                <Box
+                  component="img"
+                  src={img.url}
+                  alt="Generated design"
+                  sx={{
+                    width: 96,
+                    height: 96,
+                    objectFit: "cover",
+                    borderRadius: 1.5,
+                    border: "1px solid rgba(176,141,53,0.25)",
+                    display: "block",
+                  }}
+                />
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      )}
 
       {/* 8. Generate button */}
       <Box sx={{ p: 2.5, borderTop: "1px solid rgba(176,141,53,0.15)" }}>

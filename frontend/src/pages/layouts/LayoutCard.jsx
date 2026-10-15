@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   Card,
   CardMedia,
@@ -16,13 +16,10 @@ import {
   CircularProgress,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import { CUT_TYPE_LABELS } from "../../constants/cutTypes";
 import EditIcon from "@mui/icons-material/Edit";
 
-const TYPE_LABELS = {
-  normal: "Normal",
-  "special-cut": "Special Cut",
-  "die-cut": "Die Cut",
-};
+const TYPE_LABELS = CUT_TYPE_LABELS;
 
 const LayoutCard = ({
   layout,
