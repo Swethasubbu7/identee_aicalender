@@ -34,6 +34,8 @@ const { exportSettings, buildPrintPdf, buildCutlinePdf } = require("../services/
 const { runPrintCheck, effectiveDpi } = require("../services/export/printCheck");
 const { effectiveOptions, aiPaintsProductImage } = require("../services/layout/composition");
 const { measureEmbeddedRasters } = require("../services/layout/embeddedRasters");
+const { getStorage } = require("../services/storage");
+const User = require("../models/User");
 
 const CONTENT_PREFIX = "/uploads/design-content/";
 const MM_PER_IN = 25.4;
@@ -50,11 +52,12 @@ const jobOptions = (job, variant) => {
   });
 };
 
-const contentImage = (value) => {
+// The uploaded image must exist (GridFS shared storage or this computer).
+const contentImage = async (value) => {
   if (!value) return null;
   if (typeof value !== "string" || !value.startsWith(CONTENT_PREFIX)) return undefined;
-  const abs = resolveUpload(value);
-  return abs && fs.existsSync(abs) ? value : undefined;
+  if (!resolveUpload(value)) return undefined;
+  return (await getStorage().fileExists(value).catch(() => false)) ? value : undefined;
 };
 
 const serializeJob = async (job, req) => {
@@ -146,8 +149,8 @@ const freshlyValidated = async (variant) => {
 // Pixel sizes + boxes of the pictures used by one design.
 //   Normal Mode: the layout's own God picture (`layoutGod`), or — for a
 //   reusable layout saved from an AI design — its saved artwork / deity.
-const measureImages = (job, variation, variant, productChoice) => {
-  const sizeOf = (stored) => (stored ? imageSize(resolveUpload(stored)) : null);
+const measureImages = async (job, variation, variant, productChoice) => {
+  const sizeOf = (stored) => (stored ? getStorage().imageSizeOf(stored) : null);
   if (job.mode === "normal") {
     const d = variant.design || {};
     const product = productRegion(variant);
@@ -158,10 +161,10 @@ const measureImages = (job, variation, variant, productChoice) => {
       // The layout's own embedded artwork prints as it is: its measured
       // resolution (unless a saved AI artwork replaces it).
       layoutRasters: d.artwork ? null : measureEmbeddedRasters(variant) || variant.artworkRasters || null,
-      god: d.godImage ? { size: sizeOf(d.godImage), box: d.godImageBox || regionOf(variant, "GOD_AREA")?.box } : null,
-      background: d.artwork ? { size: sizeOf(d.artwork), box: d.artworkBox } : null,
+      god: d.godImage ? { size: await sizeOf(d.godImage), box: d.godImageBox || regionOf(variant, "GOD_AREA")?.box } : null,
+      background: d.artwork ? { size: await sizeOf(d.artwork), box: d.artworkBox } : null,
       composition: d.artwork ? "FULL_ARTWORK" : null,
-      product: productStored && product ? { size: sizeOf(productStored), box: product.box } : null,
+      product: productStored && product ? { size: await sizeOf(productStored), box: product.box } : null,
     };
   }
   const bg = regionOf(variant, "BACKGROUND_AREA");
@@ -171,16 +174,16 @@ const measureImages = (job, variation, variant, productChoice) => {
   const productStored = showsProductImage ? productPath(job, productChoice) : null;
   return {
     god: variation.godImage
-      ? { size: sizeOf(variation.godImagePrint || variation.godImage), box: variation.godImageBox || regionOf(variant, "GOD_AREA")?.box }
+      ? { size: await sizeOf(variation.godImagePrint || variation.godImage), box: variation.godImageBox || regionOf(variant, "GOD_AREA")?.box }
       : job.content.godImage && regionOf(variant, "GOD_AREA")
-        ? { size: sizeOf(job.content.godImage), box: regionOf(variant, "GOD_AREA").box }
+        ? { size: await sizeOf(job.content.godImage), box: regionOf(variant, "GOD_AREA").box }
         : null,
     background:
       variation.background && (bg || variation.backgroundBox)
-        ? { size: sizeOf(variation.backgroundPrint || variation.background), box: variation.backgroundBox || bg.box }
+        ? { size: await sizeOf(variation.backgroundPrint || variation.background), box: variation.backgroundBox || bg.box }
         : null,
     composition: variation.composition || null,
-    product: productStored && product ? { size: sizeOf(productStored), box: product.box } : null,
+    product: productStored && product ? { size: await sizeOf(productStored), box: product.box } : null,
   };
 };
 
@@ -250,9 +253,9 @@ const startJob = async (req, res, { adminTest, mode: forcedMode = null }) => {
     }
 
     const requested = readOptions(req.body);
-    const godImage = mode === "ai" ? contentImage(req.body.godImage) : null;
+    const godImage = mode === "ai" ? await contentImage(req.body.godImage) : null;
     const wantsProductImage = requested.showRightBox && requested.rightBoxMode === "image";
-    const productImage = wantsProductImage ? contentImage(req.body.productImage) : null;
+    const productImage = wantsProductImage ? await contentImage(req.body.productImage) : null;
     if (mode === "ai" && !godImage) return res.status(400).json({ message: "Upload the god image first." });
     if (productImage === undefined) return res.status(400).json({ message: "Invalid product image." });
     const content = {
@@ -285,7 +288,7 @@ const startJob = async (req, res, { adminTest, mode: forcedMode = null }) => {
         return res.status(429).json({ message: "Generation limit reached. Please try again later." });
       }
       const estimate = await estimateGenerate(picks.length);
-      const limits = await checkLimits({ estimateInr: estimate.totalInr, userId: req.user.userId, aiEnabled: true });
+      const limits = await checkLimits({ estimateInr: estimate.totalInr, userId: req.user.userId, aiEnabled: true, designs: picks.length });
       if (!limits.allowed) {
         return res.status(409).json({ message: limits.reasons[0], reasons: limits.reasons, estimate });
       }
@@ -357,7 +360,7 @@ const getLayoutPlan = async (req, res) => {
     // The cost an AI Generate would have (shown; nothing is charged here).
     const estimate = await estimateGenerate(ai.picks.length);
     const limits = aiEnabled
-      ? await checkLimits({ estimateInr: estimate.totalInr, userId: req.user.userId, aiEnabled })
+      ? await checkLimits({ estimateInr: estimate.totalInr, userId: req.user.userId, aiEnabled, designs: ai.picks.length })
       : null;
     res.status(200).json({
       layoutCode: selected.familyId?.code || null,
@@ -384,18 +387,33 @@ const getLayoutPlan = async (req, res) => {
 
 // GET /api/ai-calendars?limit=  — the designer's generations, newest first
 // (failed ones are left out: they have nothing to show).
+// Generated designs are shared by the team: every ACTIVE team member sees
+// every member's designs (?scope=mine for only your own), each with who
+// created it.
 const listJobs = async (req, res) => {
   try {
+    const viewer = await User.findById(req.user.userId).select("active").lean().catch(() => null);
+    if (!viewer || viewer.active === false) {
+      return res.status(403).json({ message: "Your account is not active." });
+    }
     const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
-    const jobs = await AiCalendarJob.find({ userId: req.user.userId, status: { $ne: "FAILED" } })
+    const filter = { status: { $ne: "FAILED" } };
+    if (req.query.scope === "mine") filter.userId = req.user.userId;
+    const jobs = await AiCalendarJob.find(filter)
       .sort({ createdAt: -1 })
       .limit(limit)
       .populate({ path: "variations.variantId", select: "familyId", populate: { path: "familyId", select: "code" } })
+      .populate({ path: "userId", model: User, select: "name" })
       .lean();
     res.status(200).json({
       jobs: jobs.map((j) => ({
         _id: j._id,
         createdAt: j.createdAt,
+        createdBy: {
+          id: j.userId?._id ? String(j.userId._id) : j.userId ? String(j.userId) : null,
+          name: j.userId?.name || "Unknown",
+          isMe: String(j.userId?._id || j.userId) === String(req.user.userId),
+        },
         status: j.status,
         mode: j.mode,
         cutType: j.cutType,
@@ -433,7 +451,9 @@ const savePreview = async (req, res) => {
     const stored = await saveImage(job._id, `v${index}-preview`, { buffer: req.file.buffer, mimeType: req.file.mimetype });
     job.variations[index].previewImage = stored;
     await job.save();
-    const old = previous && previous !== stored ? resolveUpload(previous) : null;
+    // Local storage keeps today's clean-up of the replaced picture. With
+    // shared storage nothing is deleted (the old file may not be migrated yet).
+    const old = getStorage().driver === "local" && previous && previous !== stored ? resolveUpload(previous) : null;
     if (old) fs.promises.unlink(old).catch(() => {});
     res.status(200).json({ previewUrl: toPublicUrl(stored) });
   } catch (error) {
@@ -511,7 +531,7 @@ const printCheck = async (req, res) => {
       variant: await freshlyValidated(variant),
       format: await formatOf(variant),
       settings,
-      images: measureImages(job, variation, variant, req.body?.productChoice),
+      images: await measureImages(job, variation, variant, req.body?.productChoice),
       content: job.content,
       options: jobOptions(job, variant),
       textFits: req.body?.textFits && typeof req.body.textFits === "object" ? req.body.textFits : {},
@@ -539,7 +559,7 @@ const prepareExport = async (req, res) => {
       const stored = variation[field];
       if (!stored || !box) return;
       let printPath = variation[`${field}Print`] || stored;
-      let size = imageSize(resolveUpload(printPath));
+      let size = await getStorage().imageSizeOf(printPath);
       const scale = requiredScale(effectiveDpi(size, box), settings.dpi);
       if (scale && scale > 1.05 && printPath === stored && upscaler.isConfigured()) {
         const source = await readImage(stored);
@@ -550,7 +570,7 @@ const prepareExport = async (req, res) => {
         });
         printPath = await saveImage(job._id, `v${index}-${field}-print`, up);
         job.variations[index][`${field}Print`] = printPath;
-        size = imageSize(resolveUpload(printPath));
+        size = await getStorage().imageSizeOf(printPath);
       }
       const dpi = effectiveDpi(size, box);
       if (dpi && dpi < settings.dpi * 0.95) {
@@ -573,7 +593,7 @@ const prepareExport = async (req, res) => {
       ["godImage", saved?.godImageBox, "Saved AI God image"],
     ]) {
       if (!saved?.[field] || !box) continue;
-      const dpi = effectiveDpi(imageSize(resolveUpload(saved[field])), box);
+      const dpi = effectiveDpi(await getStorage().imageSizeOf(saved[field]), box);
       if (dpi && dpi < settings.dpi * 0.95) {
         warnings.push(`${label}: about ${dpi} DPI at print size (target ${settings.dpi}). It may print soft.`);
       }
@@ -629,7 +649,7 @@ const exportPdf = async (req, res) => {
       variant: await freshlyValidated(variant),
       format,
       settings,
-      images: measureImages(job, variation, variant, req.body?.productChoice),
+      images: await measureImages(job, variation, variant, req.body?.productChoice),
       content: job.content,
       options: jobOptions(job, variant),
     });
@@ -723,8 +743,8 @@ const saveAsLayout = async (req, res) => {
     const fullArtwork = ai && variation.composition === "FULL_ARTWORK" && variation.background;
     const aiGod = ai && !fullArtwork && variation.godImage;
     if (ai && !fullArtwork && !aiGod) return res.status(409).json({ message: "This AI design has no picture to save." });
-    const pixels = (stored) => {
-      const size = stored ? imageSize(resolveUpload(stored)) : null;
+    const pixels = async (stored) => {
+      const size = stored ? await getStorage().imageSizeOf(stored) : null;
       return size ? { widthPx: size.width, heightPx: size.height } : null;
     };
 
@@ -741,7 +761,7 @@ const saveAsLayout = async (req, res) => {
       ...(fullArtwork && {
         artwork: variation.background,
         artworkBox: variation.backgroundBox,
-        artworkPx: pixels(variation.background),
+        artworkPx: await pixels(variation.background),
         godImage: null,
         godImageBox: null,
         godImagePx: null,
@@ -752,7 +772,7 @@ const saveAsLayout = async (req, res) => {
         artworkPx: null,
         godImage: variation.godImage,
         godImageBox: variation.godImageBox,
-        godImagePx: pixels(variation.godImage),
+        godImagePx: await pixels(variation.godImage),
         filledAreas: variation.filledAreas || [],
       }),
       sourceJobId: job._id,

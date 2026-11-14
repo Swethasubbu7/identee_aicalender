@@ -17,6 +17,7 @@ const LayoutVariant = require("../../models/LayoutVariant");
 const { uploadPath } = require("../../lib/assetUrl");
 const { getImageAi } = require("./imageAi");
 const { UPLOADS_DIR, resolveUpload } = require("./uploadPaths");
+const { getStorage } = require("../storage");
 const { buildArtworkGuide, buildTemplateReference } = require("./layoutReference");
 const { specialArtworkPrompt, compositionFor } = require("./calendarPrompts");
 const { effectiveOptions, aiPaintsProductImage } = require("../layout/composition");
@@ -27,10 +28,14 @@ const JOBS_FOLDER = "ai-calendars";
 const MAX_AI_INPUT_PX = 2048;
 
 const MIME_BY_EXT = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp" };
+// Stored images are read through the storage layer (GridFS shared storage
+// with this computer's uploads folder as the fallback).
 const readImage = async (storedPath) => {
-  const abs = resolveUpload(storedPath);
-  if (!abs) throw new Error("Invalid image path");
-  return { buffer: await fs.promises.readFile(abs), mimeType: MIME_BY_EXT[path.extname(abs).toLowerCase()] || "image/png" };
+  if (typeof storedPath !== "string" || !storedPath.startsWith("/uploads/")) throw new Error("Invalid image path");
+  return {
+    buffer: await getStorage().readFile(storedPath),
+    mimeType: MIME_BY_EXT[path.extname(storedPath).toLowerCase()] || "image/png",
+  };
 };
 
 // Customer photos: fix phone rotation and keep the AI request a sensible size.
@@ -43,12 +48,14 @@ const prepareForAi = async (image) => {
   return { buffer, mimeType: "image/png" };
 };
 
+// New file per save (never overwrites). In GridFS mode a failed GridFS write
+// is kept on this computer instead, so a paid AI picture is never lost.
 const saveImage = async (jobId, name, { buffer, mimeType }) => {
-  const dir = path.join(UPLOADS_DIR, JOBS_FOLDER, String(jobId));
-  await fs.promises.mkdir(dir, { recursive: true });
   const filename = `${name}-${Date.now()}${mimeType === "image/jpeg" ? ".jpg" : ".png"}`;
-  await fs.promises.writeFile(path.join(dir, filename), buffer);
-  return uploadPath(`${JOBS_FOLDER}/${jobId}`, filename);
+  return getStorage().saveFile(uploadPath(`${JOBS_FOLDER}/${jobId}`, filename), buffer, {
+    contentType: mimeType === "image/jpeg" ? "image/jpeg" : "image/png",
+    metadata: { kind: name.replace(/^v\d+-/, ""), jobId: String(jobId) },
+  });
 };
 
 const setFields = (jobId, fields) => AiCalendarJob.updateOne({ _id: jobId }, { $set: fields });

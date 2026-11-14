@@ -8,6 +8,8 @@ const { uploadPath, toPublicUrl } = require("../lib/assetUrl");
 const { resolveUpload, UPLOADS_DIR } = require("../services/ai/uploadPaths");
 const { JOBS_FOLDER } = require("../services/ai/calendarJobRunner");
 const { imageSize } = require("../lib/imageSize");
+const { getStorage } = require("../services/storage");
+const { contentFileName } = require("../middleware/upload.middleware");
 
 const CONTENT_TEXT_FIELDS = ["businessName", "productList", "address", "rightBoxText"];
 const CONTENT_SWITCH_FIELDS = ["showBusinessName", "showLeftBox", "showRightBox", "showTextLine1", "showTextLine2"];
@@ -59,6 +61,8 @@ const withContentUrls = (design) => {
   };
 };
 
+// Existing behaviour for files on this computer only. Files in GridFS are
+// never deleted by the app (removal needs an approved clean-up).
 const removeUpload = (stored) => {
   const abs = resolveUpload(stored);
   if (abs) fs.promises.unlink(abs).catch(() => {});
@@ -226,17 +230,26 @@ const autosaveDesign = async (req, res) => {
 };
 
 // POST /api/calendar-designs/uploads — designer content image (god / product).
+// Saved through the storage layer (GridFS shared storage, or this computer).
 const uploadContentImage = async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "Choose an image to upload." });
-  const size = imageSize(req.file.path);
-  const stored = uploadPath("design-content", req.file.filename);
-  res.status(201).json({
-    message: "Image uploaded",
-    path: stored,
-    url: toPublicUrl(stored),
-    widthPx: size?.width ?? null,
-    heightPx: size?.height ?? null,
-  });
+  try {
+    const size = imageSize(req.file.buffer);
+    const stored = await getStorage().saveFile(uploadPath("design-content", contentFileName(req.file)), req.file.buffer, {
+      contentType: req.file.mimetype,
+      metadata: { kind: "content-image", field: req.file.fieldname, ownerId: String(req.user.userId) },
+    });
+    res.status(201).json({
+      message: "Image uploaded",
+      path: stored,
+      url: toPublicUrl(stored),
+      widthPx: size?.width ?? null,
+      heightPx: size?.height ?? null,
+    });
+  } catch (error) {
+    console.error("Content image upload error:", error);
+    res.status(500).json({ message: "Failed to save the image" });
+  }
 };
 
 // PUT /api/calendar-designs/:id/thumbnail  multipart: thumbnail (PNG/JPEG)
@@ -245,11 +258,14 @@ const uploadThumbnail = async (req, res) => {
     if (!req.file) return res.status(400).json({ message: "Thumbnail image is required" });
     const design = await CalendarDesign.findById(req.params.id);
     if (!design || !isOwner(design, req)) {
-      removeUpload(uploadPath("design-content", req.file.filename));
       return res.status(404).json({ message: "Design not found" });
     }
     const previous = design.thumbnail;
-    design.thumbnail = uploadPath("design-content", req.file.filename);
+    design.thumbnail = await getStorage().saveFile(
+      uploadPath("design-content", contentFileName(req.file)),
+      req.file.buffer,
+      { contentType: req.file.mimetype, metadata: { kind: "thumbnail", designId: String(design._id), ownerId: String(req.user.userId) } },
+    );
     await design.save();
     if (previous && previous !== design.thumbnail) removeUpload(previous);
     res.status(200).json({ message: "Thumbnail saved", thumbnailUrl: toPublicUrl(design.thumbnail) });

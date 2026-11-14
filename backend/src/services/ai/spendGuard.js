@@ -94,9 +94,14 @@ const estimateGenerate = async (designCount) => {
 };
 
 /** Reasons why an AI Generate must not run now (empty = allowed). */
-const checkLimits = async ({ estimateInr, userId, aiEnabled }) => {
+// designs: AI designs this request will save (for the storage space check).
+const checkLimits = async ({ estimateInr, userId, aiEnabled, designs = 1 }) => {
   const reasons = [];
   if (!aiEnabled) reasons.push("AI is switched off on this server (AI_IMAGE_PROVIDER).");
+  // Shared storage (GridFS) must have room for the pictures before anything
+  // is paid for.
+  const storageReason = await require("../storage/capacity").storageBlockReason({ designs });
+  if (storageReason) reasons.push(storageReason);
   if (estimateInr == null) reasons.push("The cost of a Generate is unknown for this model.");
   const summary = await usageSummary();
   const b = summary.budget;

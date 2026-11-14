@@ -82,10 +82,23 @@ const imagePart = ({ buffer, mimeType }) => ({
 // No automatic retries (business rule 2026-10-12): a failed or slow request
 // may still be billed, so repeating it silently could double the cost. The
 // designer decides whether to try again.
+// Under the Node test runner (NODE_TEST_CONTEXT is set in every test file's
+// process) only a test's own fake SDK may answer: the real SDK would make
+// PAID requests with the key from backend/.env. A fake is installed straight
+// into require.cache and has no filename; the real, loaded module does.
+const realSdkInTests = () => {
+  if (!process.env.NODE_TEST_CONTEXT) return false;
+  const cached = require.cache[require.resolve("@google/genai")];
+  return !cached || Boolean(cached.filename);
+};
+
 const call = async (request) => {
   // Last line of defence: never open a connection while AI is switched off.
   if (!isConfigured()) {
     throw new AiProviderError("AI generation is switched off on this server.", { kind: "DISABLED" });
+  }
+  if (realSdkInTests()) {
+    throw new AiProviderError("Real AI requests are blocked while tests run.", { kind: "DISABLED" });
   }
   try {
     return await withTimeout(getClient().models.generateContent(request), config.AI_REQUEST_TIMEOUT_MS);

@@ -11,6 +11,15 @@
 const sharp = require("sharp");
 const { SUPPORTED_RATIOS } = require("./imageAi");
 const { resolveUpload } = require("./uploadPaths");
+const { getStorage, isSharedKey } = require("../storage");
+
+// sharp input for a stored file: shared design images (e.g. the preview of a
+// layout saved from an AI design) come from the storage layer, other layout
+// files from this computer.
+const storedInput = async (stored) => {
+  if (isSharedKey(stored)) return getStorage().readFile(stored).catch(() => null);
+  return resolveUpload(stored);
+};
 
 const OPENING_GREY = "#808080";
 const MAX_REFERENCE_PX = 1536;
@@ -130,7 +139,7 @@ const buildGodReference = async (variant, { extraOpenings = [] } = {}) => {
 
 /** Small picture of the whole layout, for colour / style context. */
 const buildStyleReference = async (variant) => {
-  const file = resolveUpload(variant.assets?.preview);
+  const file = await storedInput(variant.assets?.preview);
   if (!file) return null;
   const buffer = await sharp(file).resize({ width: 768, height: 768, fit: "inside" }).jpeg({ quality: 85 }).toBuffer();
   return { buffer, mimeType: "image/jpeg" };
@@ -224,7 +233,7 @@ const buildTemplateReference = async (variant, options = {}) => {
   const overlayFile = resolveUpload(bare && variant.assets?.overlayBare ? variant.assets.overlayBare : variant.assets?.overlay);
   if (!plateFile) {
     if (bare) return null; // never send a template that still shows removed boxes
-    const file = resolveUpload(variant.assets?.original || variant.assets?.preview);
+    const file = await storedInput(variant.assets?.original || variant.assets?.preview);
     if (!file) return null;
     const buffer = await sharp(file).resize({ width: 1024, height: 1024, fit: "inside" }).jpeg({ quality: 85 }).toBuffer();
     return { buffer, mimeType: "image/jpeg", removedSections: 0 };

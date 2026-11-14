@@ -3,12 +3,13 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "node --test",
+    "test": "node --require ./scripts/testSetup.js --test",
     "seed:formats": "node src/seed/seedCalendarFormats.js",
     "migrate:legacy-layouts": "node src/seed/migrateLegacyLayouts.js",
     "ai:readiness": "node scripts/aiReadiness.js",
     "check:exports": "node scripts/exportRegression.js",
     "check:production-files": "node scripts/checkProductionFiles.js",
+    "storage:migrate-gridfs": "node scripts/migrateToGridfs.js",
     "dev": "nodemon src/index.js",
     "start": "node src/index.js"
   },

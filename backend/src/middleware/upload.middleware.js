@@ -119,15 +119,14 @@ if (!fs.existsSync(designContentDir)) {
 }
 
 const CONTENT_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"];
+upload.contentFileName = (file) =>
+  `${Date.now()}-${file.fieldname}${path.extname(file.originalname).toLowerCase()}`;
 
+// Kept in memory: the controller saves it through the storage layer
+// (GridFS when STORAGE_DRIVER=gridfs, else this computer's disk) with the
+// same "<timestamp>-<field>.<ext>" names as before (contentFileName below).
 upload.designContentUpload = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => cb(null, designContentDir),
-    filename: (req, file, cb) => {
-      const uniqueName = `${Date.now()}-${file.fieldname}${path.extname(file.originalname).toLowerCase()}`;
-      cb(null, uniqueName);
-    },
-  }),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 25 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (!CONTENT_IMAGE_TYPES.includes(file.mimetype)) {

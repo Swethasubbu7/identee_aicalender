@@ -23,6 +23,10 @@ const { runPrintCheck } = require("../src/services/export/printCheck");
 const { CALENDAR_FORMATS } = require("../src/constants/calendar");
 
 // ---- the AI provider: counts every call, never sends anything ---------------
+// The mock below replaces the provider named "none", so the configured
+// provider must be "none" here even if backend/.env says "gemini" (otherwise
+// the REAL Gemini provider would answer and bill the request).
+require("../src/config").AI_IMAGE_PROVIDER = "none";
 let aiCalls = 0;
 let aiOn = false;
 registerImageAi({

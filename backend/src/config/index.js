@@ -16,6 +16,21 @@ module.exports = {
     process.env.PUBLIC_BASE_URL || `http://localhost:${PORT}`
   ).replace(/\/$/, ""),
 
+  // Shared file storage for AI artwork, previews and customer images.
+  // "local" (default) = this computer's uploads folder (today's behaviour);
+  // "gridfs" = MongoDB GridFS in the app's Atlas database, so every
+  // computer sees the same files. Local files stay readable as a fallback.
+  // Layouts, production files and print PDFs always stay local.
+  STORAGE_DRIVER: (process.env.STORAGE_DRIVER || "local").trim().toLowerCase() || "local",
+  // Database size limit (Atlas M0 free tier = 512 MB) and the free space a
+  // paid AI Generate needs before it may start.
+  STORAGE_LIMIT_MB: Number(process.env.STORAGE_LIMIT_MB) || 512,
+  STORAGE_MIN_FREE_MB: Number(process.env.STORAGE_MIN_FREE_MB) || 50,
+  // Room reserved per AI design (artwork + preview + print image).
+  STORAGE_MB_PER_AI_DESIGN: Number(process.env.STORAGE_MB_PER_AI_DESIGN) || 15,
+  // How long a signed image link stays valid (seconds).
+  STORAGE_URL_TTL_SECONDS: Number(process.env.STORAGE_URL_TTL_SECONDS) || 3600,
+
   // Software tolerance used when comparing two CAD measurements of the same
   // thing (e.g. a mapped cake rectangle vs. the catalogue cake size). This is
   // NOT a printer/laser specification — those live in ProductionProfile.

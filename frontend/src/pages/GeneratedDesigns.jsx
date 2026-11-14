@@ -36,7 +36,7 @@ const GeneratedDesigns = () => {
               Generated Designs
             </Typography>
             <Typography variant="body2" sx={{ color: "#7A7266", mt: 0.5 }}>
-              Your AI calendar designs. Open one to preview, run the print check and download the PDFs.
+              Calendar designs from the whole team. Open one to preview, run the print check and download the PDFs.
             </Typography>
           </Box>
           <Button variant="contained" startIcon={<AddCircleOutlineIcon />} onClick={() => navigate("/layouts")}>
