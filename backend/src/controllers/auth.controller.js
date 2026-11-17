@@ -4,7 +4,9 @@ const User = require("../models/User");
 
 const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    // Plain strings only (an object here would be a database query).
+    const email = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
+    const password = typeof req.body?.password === "string" ? req.body.password : "";
 
     // Check email and password
     if (!email || !password) {

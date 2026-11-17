@@ -28,8 +28,14 @@ process.on("unhandledRejection", (reason) => {
 const path = require("path");
 const app = express();
 
+// Security basics: headers, CORS limited to the configured origins
+// (CORS_ORIGINS), the real client address behind a proxy (TRUST_PROXY).
+const { securityHeaders, corsOptions } = require("./middleware/security");
+app.disable("x-powered-by");
+if (config.TRUST_PROXY) app.set("trust proxy", config.TRUST_PROXY);
+app.use(securityHeaders);
 // Content-Disposition is exposed so PDF downloads keep their file names.
-app.use(cors({ exposedHeaders: ["Content-Disposition"] }));
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Auth Routes

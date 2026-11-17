@@ -1,10 +1,23 @@
+const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
+const config = require("../config");
 const User = require("../models/User");
 
-// Temporary OTP storage
+// Staff self-registration is closed unless ALLOW_STAFF_SIGNUP=true (security
+// audit 2026-11-17: a public sign-up gave full staff access, paid AI
+// included). Staff accounts are created by an administrator.
+const SIGNUP_CLOSED = {
+  message: "Staff accounts are created by an administrator. Please ask your Nauticrew administrator for access.",
+};
+
+// Temporary OTP storage (the password is kept only as a hash; the code is
+// kept only as a hash; at most MAX_OTP_ATTEMPTS tries).
 const otpStore = new Map();
+const MAX_OTP_ATTEMPTS = 5;
+const hashOtp = (otp) => crypto.createHash("sha256").update(String(otp)).digest();
+const text = (v) => (typeof v === "string" ? v : "");
 
 // Gmail transporter
 const transporter = nodemailer.createTransport({
@@ -20,7 +33,10 @@ const transporter = nodemailer.createTransport({
 // ===============================
 const register = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    if (!config.ALLOW_STAFF_SIGNUP) return res.status(403).json(SIGNUP_CLOSED);
+    const name = text(req.body?.name).trim();
+    const email = text(req.body?.email);
+    const password = text(req.body?.password);
 
     if (!name || !email || !password) {
       return res.status(400).json({
@@ -41,15 +57,20 @@ const register = async (req, res) => {
       });
     }
 
-    // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    if (password.length < 8) {
+      return res.status(400).json({ message: "The password must have at least 8 characters" });
+    }
 
-    // Store registration temporarily
+    // Generate 6-digit OTP (cryptographically random)
+    const otp = crypto.randomInt(100000, 1000000).toString();
+
+    // Store registration temporarily: hashes only
     otpStore.set(normalizedEmail, {
       name,
       email: normalizedEmail,
-      password,
-      otp,
+      passwordHash: await bcrypt.hash(password, 12),
+      otpHash: hashOtp(otp),
+      attempts: 0,
       expiresAt: Date.now() + 5 * 60 * 1000,
     });
 
@@ -92,7 +113,6 @@ const register = async (req, res) => {
     // Development log
     console.log("================================");
     console.log("OTP sent to:", normalizedEmail);
-    console.log("OTP:", otp);
     console.log("================================");
 
     res.status(200).json({
@@ -112,7 +132,9 @@ const register = async (req, res) => {
 // ===============================
 const verifyOtp = async (req, res) => {
   try {
-    const { email, otp } = req.body;
+    if (!config.ALLOW_STAFF_SIGNUP) return res.status(403).json(SIGNUP_CLOSED);
+    const email = text(req.body?.email);
+    const otp = typeof req.body?.otp === "number" ? String(req.body.otp) : text(req.body?.otp);
 
     if (!email || !otp) {
       return res.status(400).json({
@@ -139,15 +161,19 @@ const verifyOtp = async (req, res) => {
       });
     }
 
-    // Check OTP
-    if (registration.otp !== otp.toString()) {
+    // Check OTP (constant time; limited attempts)
+    registration.attempts += 1;
+    if (registration.attempts > MAX_OTP_ATTEMPTS) {
+      otpStore.delete(normalizedEmail);
+      return res.status(429).json({ message: "Too many attempts. Please register again." });
+    }
+    if (!crypto.timingSafeEqual(registration.otpHash, hashOtp(otp.trim()))) {
       return res.status(400).json({
         message: "Invalid OTP",
       });
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(registration.password, 10);
+    const hashedPassword = registration.passwordHash;
 
     // Create STAFF account
     const user = await User.create({

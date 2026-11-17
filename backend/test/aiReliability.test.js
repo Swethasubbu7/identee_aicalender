@@ -245,14 +245,14 @@ const loadRunner = () => {
     return {};
   };
   const runner = require(path.join(SRC, "services/ai/calendarJobRunner"));
-  const { RUNNER_ID, HOST } = require(path.join(SRC, "services/ai/runnerId"));
-  return { runner, jobs, updates, store, RUNNER_ID, HOST };
+  const { RUNNER_ID, HOST, SERVER } = require(path.join(SRC, "services/ai/runnerId"));
+  return { runner, jobs, updates, store, RUNNER_ID, HOST, SERVER };
 };
 
 test("recovery: only jobs of this server's EARLIER run or stale jobs are closed; never re-run", async () => {
   const ctx = loadRunner();
-  const { HOST, RUNNER_ID } = ctx;
-  const ownOld = `${HOST}:999:1`;
+  const { HOST, SERVER, RUNNER_ID } = ctx;
+  const ownOld = `${SERVER}:999:1`;
   // Minimal matcher for the recovery filter ($or of runnerId regex / stale heartbeat).
   const job = (id, runnerId, heartbeatAt, variations) => ({
     _id: id,
@@ -274,6 +274,8 @@ test("recovery: only jobs of this server's EARLIER run or stale jobs are closed;
     job("restarted", ownOld, new Date(), [{ status: "RUNNING" }, { status: "DONE" }]),
     job("other-live-server", "other-pc:1:1", new Date(), [{ status: "RUNNING" }]),
     job("this-process", RUNNER_ID, new Date(), [{ status: "RUNNING" }]),
+    // Another server on the same computer (another port), still running.
+    job("same-pc-other-port", `${HOST}:59999:1:1`, new Date(), [{ status: "RUNNING" }]),
     job("stale-elsewhere", "other-pc:2:2", new Date(Date.now() - 60 * 60 * 1000), [{ status: "PENDING" }]),
   );
   await quiet(() => ctx.runner.recoverInterruptedJobs());

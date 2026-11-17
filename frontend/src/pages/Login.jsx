@@ -8,6 +8,10 @@ import logo from "../assets/nauticrew-logo.png";
 import logoDark from "../assets/nauticrew-logo-dark.png";
 import { useColorMode } from "../colorMode";
 
+// Staff self-registration is closed (accounts are created by an
+// administrator); the form shows only when the backend allows sign-up too.
+const STAFF_SIGNUP_OPEN = import.meta.env.VITE_ALLOW_STAFF_SIGNUP === "true";
+
 const Login = () => {
   const [isLogin, setIsLogin] = useState(true);
 
@@ -274,6 +278,7 @@ const Login = () => {
                 {/* ================================= */}
                 {/* LOGIN / REGISTER TOGGLE */}
                 {/* ================================= */}
+                {STAFF_SIGNUP_OPEN && (
                 <div className="auth-toggle">
                   <button
                     type="button"
@@ -291,11 +296,12 @@ const Login = () => {
                     Create Account
                   </button>
                 </div>
+                )}
 
                 {/* ================================= */}
                 {/* LOGIN */}
                 {/* ================================= */}
-                {isLogin ? (
+                {isLogin || !STAFF_SIGNUP_OPEN ? (
                   <div className="form-content">
                     <div className="form-heading">
                       <span className="small-label">STAFF PORTAL</span>
@@ -357,6 +363,11 @@ const Login = () => {
                         <span className="button-arrow">→</span>
                       </button>
                     </form>
+                    {!STAFF_SIGNUP_OPEN && (
+                      <p className="signup-note" style={{ marginTop: 16, fontSize: 13, opacity: 0.75, textAlign: "center" }}>
+                        Need access? Staff accounts are created by your Nauticrew administrator.
+                      </p>
+                    )}
                   </div>
                 ) : (
                   /* ================================= */

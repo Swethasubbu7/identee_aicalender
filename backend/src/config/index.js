@@ -12,6 +12,19 @@ module.exports = {
   // Public origin used to build absolute asset URLs in API responses.
   // Stored paths in MongoDB are relative ("/uploads/..."), so changing this
   // never requires a data migration.
+  // Staff self-registration (POST /api/auth/register): OFF unless set to
+  // "true". Staff accounts are created by an administrator
+  // (scripts/createStaff.js) — a public sign-up must never grant staff access.
+  ALLOW_STAFF_SIGNUP: String(process.env.ALLOW_STAFF_SIGNUP || "").trim().toLowerCase() === "true",
+  // Browser origins allowed to call the API (comma-separated). Development
+  // defaults; production sets the real domain(s).
+  CORS_ORIGINS: (process.env.CORS_ORIGINS || "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174")
+    .split(",")
+    .map((o) => o.trim().replace(/\/+$/, ""))
+    .filter(Boolean),
+  // Behind a reverse proxy (Nginx): its hop count, so rate limits see the
+  // real client address. 0 = no proxy.
+  TRUST_PROXY: Number(process.env.TRUST_PROXY) || 0,
   PUBLIC_BASE_URL: (
     process.env.PUBLIC_BASE_URL || `http://localhost:${PORT}`
   ).replace(/\/$/, ""),
