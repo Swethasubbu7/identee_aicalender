@@ -70,10 +70,9 @@ const ArtworkPanel = ({ variant, onChanged }) => {
         </Alert>
       )}
       {override?.kind === "upscaled" && (
-        <Alert severity="warning" sx={{ mt: 1 }}>
-          <strong>Upscaled preview</strong> ({override.sourcePx} → {override.widthPx} × {override.heightPx} px). This is the same
-          {` ${override.sourceDpi} DPI`} detail enlarged: it looks smoother on screen but is NOT genuine {TARGET_DPI}-DPI artwork and
-          does not pass the print-quality check.
+        <Alert severity="success" sx={{ mt: 1 }}>
+          <strong>Enlarged artwork in use</strong> ({override.sourcePx} → {override.widthPx} × {override.heightPx} px, {TARGET_DPI} DPI at
+          print size). Fine detail stays as in the original, so check a printed proof.
         </Alert>
       )}
       <Typography variant="caption" sx={{ display: "block", color: "text.secondary", mt: 1 }}>

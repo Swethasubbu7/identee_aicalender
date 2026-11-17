@@ -55,12 +55,12 @@ const register = async (req, res) => {
 
     // Send OTP email
     await transporter.sendMail({
-      from: `"IDENTEE" <${process.env.EMAIL_USER}>`,
+      from: `"NAUTICREW" <${process.env.EMAIL_USER}>`,
       to: normalizedEmail,
-      subject: "IDENTEE - Email Verification OTP",
+      subject: "NAUTICREW - Email Verification OTP",
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px;">
-          <h2 style="color: #b08d35;">IDENTEE</h2>
+          <h2 style="color: #b08d35;">NAUTICREW</h2>
 
           <p>Hello ${name},</p>
 
@@ -84,7 +84,7 @@ const register = async (req, res) => {
             If you did not request this, please ignore this email.
           </p>
 
-          <p>Regards,<br>IDENTEE Team</p>
+          <p>Regards,<br>Nauticrew Team</p>
         </div>
       `,
     });

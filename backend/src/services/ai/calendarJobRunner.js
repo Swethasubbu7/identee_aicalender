@@ -20,9 +20,46 @@ const { UPLOADS_DIR, resolveUpload } = require("./uploadPaths");
 const { getStorage } = require("../storage");
 const { buildArtworkGuide, buildTemplateReference } = require("./layoutReference");
 const { specialArtworkPrompt, compositionFor } = require("./calendarPrompts");
+const { artDirectionFor } = require("./artDirection");
 const { effectiveOptions, aiPaintsProductImage } = require("../layout/composition");
 const { themeFor } = require("./themes");
-const { recordedRequest, logGenerationSummary } = require("./usageLedger");
+const { recordedRequest, logGenerationSummary, closeInterruptedRequests, flushPendingUsage } = require("./usageLedger");
+const { RUNNER_ID, earlierRunsOfThisHost } = require("./runnerId");
+
+// A running job reports in every HEARTBEAT_MS. One that has not for
+// STALE_MS (its server crashed, restarted or lost the network) is closed as
+// interrupted — on any server sharing the database — and never re-run.
+const HEARTBEAT_MS = 30 * 1000;
+const STALE_MS = 5 * 60 * 1000;
+
+// Internal cause of a failure for the job record (never shown to designers).
+const detailOf = (err) => {
+  const text = [err?.kind, err?.httpStatus && `HTTP ${err.httpStatus}`, err?.detail || err?.message].filter(Boolean).join(" · ");
+  return text.replace(/AIza[\w-]{10,}|AQ\.[\w.-]{10,}/g, "[redacted]").slice(0, 500) || null;
+};
+
+// Jobs this process holds (waiting in its queue or running). One timer
+// reports them all in, so a job waiting behind others is not seen as stale.
+const owned = new Set();
+let beatTimer = null;
+const beat = (ids) =>
+  Promise.all(
+    ids.map((id) =>
+      Promise.resolve(AiCalendarJob.updateOne({ _id: id }, { $set: { heartbeatAt: new Date(), runnerId: RUNNER_ID } })).catch(() => {}),
+    ),
+  );
+const own = (jobId) => {
+  owned.add(String(jobId));
+  if (!beatTimer) {
+    beatTimer = setInterval(() => beat([...owned]), HEARTBEAT_MS);
+    beatTimer.unref?.();
+  }
+};
+const release = (jobId) => owned.delete(String(jobId));
+const startHeartbeat = (jobId) => {
+  own(jobId);
+  return () => release(jobId);
+};
 
 const JOBS_FOLDER = "ai-calendars";
 const MAX_AI_INPUT_PX = 2048;
@@ -106,7 +143,10 @@ const runFullArtworkVariation = async (job, i, variant, godImage, theme, ai, opt
   const template = await buildTemplateReference(variant, options);
   const images = [godImage, guide, ...(template ? [template] : [])];
   const composition = compositionFor(i, job.variations.length);
+  // Own creative direction per design (seeded: the same on a regenerate).
+  const direction = artDirectionFor(`${job._id}:${i}`);
   const prompt = specialArtworkPrompt({
+    artDirection: direction.text,
     theme,
     prompt: job.prompt,
     hasTemplateReference: Boolean(template),
@@ -120,7 +160,7 @@ const runFullArtworkVariation = async (job, i, variant, godImage, theme, ai, opt
     noPanels: guide.panelCount === 0,
     productArea: guide.productArea,
   });
-  await setFields(job._id, { [`${key}.compositionStyle`]: composition.name });
+  await setFields(job._id, { [`${key}.compositionStyle`]: composition.name, [`${key}.artDirection`]: direction.text });
   const result = await recordedRequest(
     () => ai.editImage({ prompt, images, aspectRatio: guide.aspectRatio }),
     usageMeta(job, i, ai, guide.aspectRatio, images, job.adminTest ? "admin-test-image" : "design-artwork"),
@@ -152,12 +192,16 @@ const runVariation = async (job, i, variant, godImage, theme, ai) => {
   return runFullArtworkVariation(job, i, variant, godImage, theme, ai, options);
 };
 
-const markFailed = (jobId, i, err) =>
-  setFields(jobId, {
+const markFailed = (jobId, i, err) => {
+  if (!err?.code) console.error(`AI job ${jobId} design ${i + 1} failed:`, err?.stack || err);
+  return setFields(jobId, {
     [`variations.${i}.status`]: "FAILED",
     [`variations.${i}.error`]: userMessage(err),
+    [`variations.${i}.errorKind`]: err?.kind || null,
+    [`variations.${i}.errorDetail`]: detailOf(err),
     ...(err?.kind && { errorKind: err.kind }),
   });
+};
 
 const finishJob = async (jobId) => {
   const job = await AiCalendarJob.findById(jobId);
@@ -173,9 +217,15 @@ const finishJob = async (jobId) => {
 };
 
 const runJob = async (jobId) => {
-  const job = await AiCalendarJob.findById(jobId);
-  if (!job || job.status !== "QUEUED") return;
+  // Claimed atomically: a job is only ever run once, by one server.
+  const job = await AiCalendarJob.findOneAndUpdate(
+    { _id: jobId, status: "QUEUED" },
+    { $set: { status: "RUNNING", runnerId: RUNNER_ID, heartbeatAt: new Date() } },
+    { new: true },
+  );
+  if (!job) return;
   const ai = getImageAi();
+  const stopHeartbeat = startHeartbeat(jobId);
   try {
     // Checked again here: the master switch may have changed since the job
     // was created. Nothing is sent while AI is off.
@@ -184,7 +234,7 @@ const runJob = async (jobId) => {
       err.code = "AI_PROVIDER_ERROR";
       throw err;
     }
-    await setFields(jobId, { status: "RUNNING", progress: `Designing ${job.variations.length} designs` });
+    await setFields(jobId, { progress: `Designing ${job.variations.length} designs` });
     const byId = await loadVariants(job);
     const godImage = await prepareForAi(await readImage(job.content.godImage));
 
@@ -197,19 +247,23 @@ const runJob = async (jobId) => {
         await runVariation(job, i, variant, godImage, themeFor(job.prompt, i), ai);
       } catch (err) {
         await markFailed(jobId, i, err);
-        if (["QUOTA", "AUTH", "DISABLED"].includes(err?.kind)) break;
+        // Stop before the next paid request when the next one would fail the same way.
+        if (["QUOTA", "AUTH", "DISABLED", "NETWORK", "LEDGER_UNAVAILABLE"].includes(err?.kind)) break;
       }
     }
     await finishJob(jobId);
   } catch (error) {
-    console.error(`AI job ${jobId} failed:`, error.message);
+    console.error(`AI job ${jobId} failed:`, error?.stack || error);
     await setFields(jobId, {
       status: "FAILED",
       progress: "Failed",
       error: userMessage(error),
       errorKind: error?.kind || null,
+      errorDetail: detailOf(error),
       finishedAt: new Date(),
-    });
+    }).catch((err) => console.error(`AI job ${jobId}: failure could not be saved (closed later as interrupted):`, err.message));
+  } finally {
+    stopHeartbeat();
   }
   await logGenerationSummary(jobId, job.variations.length).catch(() => {});
 };
@@ -220,6 +274,7 @@ const runRegeneration = async (jobId, index) => {
   const variation = job?.variations[index];
   if (!variation) return;
   const ai = getImageAi();
+  const stopHeartbeat = startHeartbeat(jobId);
   try {
     if (!ai.isConfigured()) {
       const err = new Error("AI image generation is switched off on this server.");
@@ -233,9 +288,11 @@ const runRegeneration = async (jobId, index) => {
     const theme = variation.theme?.name ? variation.theme : themeFor(job.prompt, index);
     await runVariation(job, index, variant, godImage, theme, ai);
   } catch (err) {
-    await markFailed(jobId, index, err);
+    await markFailed(jobId, index, err).catch(() => {});
+  } finally {
+    stopHeartbeat();
   }
-  await finishJob(jobId);
+  await finishJob(jobId).catch((err) => console.error(`AI job ${jobId}: result could not be saved:`, err.message));
   await logGenerationSummary(jobId, 1).catch(() => {});
 };
 
@@ -254,24 +311,92 @@ const pump = () => {
   }
 };
 
+// Held (and reported in) from the moment it is queued until it ends.
 const enqueueJob = (jobId) => {
-  queue.push(() => runJob(String(jobId)));
+  own(jobId);
+  queue.push(() => runJob(String(jobId)).finally(() => release(jobId)));
   pump();
 };
 
 const enqueueRegeneration = (jobId, index) => {
-  queue.push(() => runRegeneration(String(jobId), index));
+  own(jobId);
+  queue.push(() => runRegeneration(String(jobId), index).finally(() => release(jobId)));
   pump();
 };
 
-// The queue is in memory: jobs interrupted by a restart are marked failed.
-const recoverInterruptedJobs = () =>
-  AiCalendarJob.updateMany(
-    { status: { $in: ["QUEUED", "RUNNING"] } },
-    { $set: { status: "FAILED", progress: "Failed", error: "Interrupted by a server restart. Please generate again.", finishedAt: new Date() } },
-  );
+// The queue is in memory. Interrupted jobs are closed as FAILED (never
+// re-run: their request may already have been billed) together with their
+// unfinished designs and usage records:
+//  - on start: jobs of an EARLIER process of this server (restart / crash);
+//  - every sweep: jobs on any server that stopped reporting in (STALE_MS).
+// Jobs another live server is running are left alone.
+const INTERRUPTED_MESSAGE = "Generation was interrupted (server restart or lost connection). Nothing is retried automatically — press Try again to generate again.";
+
+const closeJobs = async (filter) => {
+  const jobs = await AiCalendarJob.find({ status: { $in: ["QUEUED", "RUNNING"] }, ...filter });
+  for (const job of jobs) {
+    const set = {
+      status: "FAILED",
+      progress: "Failed",
+      error: INTERRUPTED_MESSAGE,
+      errorKind: "INTERRUPTED",
+      finishedAt: new Date(),
+    };
+    job.variations.forEach((v, i) => {
+      if (["PENDING", "RUNNING"].includes(v.status)) {
+        set[`variations.${i}.status`] = "FAILED";
+        set[`variations.${i}.error`] = INTERRUPTED_MESSAGE;
+        set[`variations.${i}.errorKind`] = "INTERRUPTED";
+      }
+    });
+    // Designs already finished keep their pictures: the job is PARTIAL.
+    if (job.variations.some((v) => v.status === "DONE")) {
+      set.status = "PARTIAL";
+      set.progress = `${job.variations.filter((v) => v.status === "DONE").length} of ${job.variations.length} designs generated`;
+      set.error = null;
+    }
+    // Only if it is still unfinished (its runner may have just finished it).
+    await AiCalendarJob.updateOne({ _id: job._id, status: { $in: ["QUEUED", "RUNNING"] } }, { $set: set });
+  }
+  return jobs.length;
+};
+
+const staleFilter = () => {
+  const before = new Date(Date.now() - STALE_MS);
+  return {
+    $or: [{ heartbeatAt: { $lt: before } }, { heartbeatAt: null, updatedAt: { $lt: before } }],
+  };
+};
+
+const recoverInterruptedJobs = async () => {
+  const own = earlierRunsOfThisHost();
+  const closed = await closeJobs({ $or: [{ runnerId: own }, ...staleFilter().$or] });
+  // Older jobs (before runner ids) waiting in this server's queue are gone too.
+  const requests = await closeInterruptedRequests({ ownEarlierRuns: own, olderThanMs: STALE_MS + 2 * config.AI_REQUEST_TIMEOUT_MS });
+  await flushPendingUsage();
+  if (closed || requests) console.log(`AI recovery: ${closed} interrupted job(s), ${requests} unfinished request(s) closed (not retried).`);
+  return { closed, requests };
+};
+
+// Regular check while the server runs (other servers may have stopped).
+const sweepInterrupted = async () => {
+  const closed = await closeJobs(staleFilter());
+  const requests = await closeInterruptedRequests({ olderThanMs: STALE_MS + 2 * config.AI_REQUEST_TIMEOUT_MS });
+  await flushPendingUsage();
+  return { closed, requests };
+};
+
+let sweepTimer = null;
+const startInterruptedSweep = (everyMs = 2 * 60 * 1000) => {
+  if (sweepTimer) return;
+  sweepTimer = setInterval(() => sweepInterrupted().catch((err) => console.error("AI sweep failed:", err.message)), everyMs);
+  sweepTimer.unref?.();
+};
 
 module.exports = {
+  sweepInterrupted,
+  startInterruptedSweep,
+  STALE_MS,
   enqueueJob,
   enqueueRegeneration,
   recoverInterruptedJobs,

@@ -582,3 +582,64 @@
     font-size: 25px;
   }
 }
+/* =========================
+   DARK MODE (saved light/dark choice, see colorMode.js)
+========================= */
+
+:root[data-theme="dark"] .login-page {
+  background:
+    radial-gradient(circle at 10% 20%, rgba(218, 171, 75, 0.1), transparent 30%),
+    radial-gradient(circle at 90% 80%, rgba(218, 171, 75, 0.08), transparent 30%),
+    #12100d;
+}
+:root[data-theme="dark"] .login-container {
+  background: rgba(28, 25, 21, 0.86);
+  border-color: rgba(201, 162, 39, 0.2);
+}
+:root[data-theme="dark"] .brand-section {
+  background: linear-gradient(145deg, rgba(36, 32, 26, 0.95), rgba(28, 25, 21, 0.9));
+  border-right-color: rgba(201, 162, 39, 0.18);
+}
+:root[data-theme="dark"] .logo-wrapper {
+  background: transparent;
+  box-shadow: none;
+}
+:root[data-theme="dark"] .brand-section h1,
+:root[data-theme="dark"] .form-heading h2,
+:root[data-theme="dark"] .brand-description h3 {
+  color: #f1ece0;
+}
+:root[data-theme="dark"] .brand-section > .brand-content > p,
+:root[data-theme="dark"] .brand-description p,
+:root[data-theme="dark"] .form-heading p,
+:root[data-theme="dark"] .input-group label,
+:root[data-theme="dark"] .security-note {
+  color: #b5ac9c;
+}
+:root[data-theme="dark"] .brand-description {
+  background: rgba(255, 255, 255, 0.04);
+}
+:root[data-theme="dark"] .auth-toggle {
+  background: #262219;
+}
+:root[data-theme="dark"] .auth-toggle button {
+  color: #b5ac9c;
+}
+:root[data-theme="dark"] .auth-toggle button:hover {
+  color: #f1ece0;
+}
+:root[data-theme="dark"] .auth-toggle button.active {
+  background: #1c1915;
+  color: #e9c767;
+}
+:root[data-theme="dark"] .input-wrapper input {
+  background: #24211c;
+  border-color: #3a352c;
+  color: #f1ece0;
+}
+:root[data-theme="dark"] .input-wrapper input::placeholder {
+  color: #8f877a;
+}
+:root[data-theme="dark"] .input-wrapper input:focus {
+  background: #24211c;
+}

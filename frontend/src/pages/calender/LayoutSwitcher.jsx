@@ -49,7 +49,7 @@ const LayoutSwitcher = ({
               flexShrink: 0,
               height: "100%",
               overflowY: "auto",
-              background: "#FFFFFF",
+              background: "var(--nc-paper)",
               borderRight: "1px solid rgba(176,141,53,0.15)",
               p: 1.25,
               display: "flex",
@@ -70,7 +70,7 @@ const LayoutSwitcher = ({
         <Typography
           variant="caption"
           sx={{
-            color: "#7A7266",
+            color: "var(--nc-text-2)",
             fontWeight: 700,
             letterSpacing: 0.5,
             px: 0.25,
@@ -118,7 +118,7 @@ const LayoutSwitcher = ({
                   height: isVertical ? 90 : 90,
                   objectFit: "cover",
                   display: "block",
-                  background: "#EDE7D9",
+                  background: "var(--nc-well)",
                 }}
               />
             </Box>

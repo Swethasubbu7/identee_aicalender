@@ -49,6 +49,18 @@ const variationSchema = new mongoose.Schema(
     // (Special Die-Cut: the AI picture is the whole artwork, in `background`).
     composition: { type: String, default: null },
     compositionStyle: { type: String, default: null }, // Special: "Grand deity", "Calendar focus", …
+    artDirection: { type: String, default: null }, // AI Mode: arch / flowers / lighting chosen for this design
+    // AI Mode, edited after generation: the business name's size (percent)
+    // and colour for this design only. null = as generated.
+    nameStyle: { type: mongoose.Schema.Types.Mixed, default: null }, // first version (name only); see edits
+    // AI Mode, edited after generation, per area of THIS design:
+    // { name, left, right } → { text?, size?, colour? } (null = as generated).
+    // The original content and the AI picture are never changed.
+    edits: { type: mongoose.Schema.Types.Mixed, default: null },
+    errorKind: { type: String, default: null },
+    // Internal cause of a failure (provider status / text with keys removed,
+    // or the app error). Never sent to the browser; for diagnosis only.
+    errorDetail: { type: String, default: null },
     // Die-Cut / Normal: areas of removed sections the AI picture also fills (trim mm).
     filledAreas: { type: [mongoose.Schema.Types.Mixed], default: [] },
     godImage: { type: String, default: null }, // relative upload path
@@ -90,6 +102,7 @@ const aiCalendarJobSchema = new mongoose.Schema(
       // AI-cleaned copy of the product photo (the original is always kept).
       productImageEnhanced: { type: String, default: null },
       rightBoxText: { type: String, default: "" },
+      leftBoxImage: { type: String, default: null }, // left box as a picture
     },
     // Designer's options (same for both designs).
     options: {
@@ -100,6 +113,12 @@ const aiCalendarJobSchema = new mongoose.Schema(
       showTextLine1: { type: Boolean, default: true }, // Special Die-Cut
       showTextLine2: { type: Boolean, default: true },
       rightBoxMode: { type: String, enum: ["image", "text"], default: "image" },
+      leftBoxMode: { type: String, enum: ["image", "text"], default: "text" },
+      // Typography chosen in Customise ("" / {} = automatic).
+      fontStyle: { type: String, default: "" },
+      textColour: { type: String, default: "" },
+      textSizes: { type: mongoose.Schema.Types.Mixed, default: {} },
+      godPlacement: { type: mongoose.Schema.Types.Mixed, default: null },
     },
     // "normal" = content on the layout, no AI ever; "ai" = paid image
     // generation; "preview" = older free previews (before the mode selector).
@@ -120,6 +139,12 @@ const aiCalendarJobSchema = new mongoose.Schema(
     aiCalls: { type: Number, default: 0 },
     error: { type: String, default: null },
     errorKind: { type: String, default: null }, // QUOTA | AUTH | RATE_LIMIT | TIMEOUT | …
+    errorDetail: { type: String, default: null }, // internal only (see variation.errorDetail)
+    // Which server process runs the job and when it last reported in: a job
+    // whose runner stopped (crash, restart, lost network) is found and closed
+    // without touching jobs other servers on the shared database are running.
+    runnerId: { type: String, default: null },
+    heartbeatAt: { type: Date, default: null },
     finishedAt: { type: Date, default: null },
   },
   { timestamps: true },

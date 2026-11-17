@@ -367,7 +367,7 @@ const CalendarWorkspace = forwardRef(
       const canvas = new fabric.Canvas(canvasElRef.current, {
         width: CANVAS_WIDTH,
         height: CANVAS_HEIGHT,
-        backgroundColor: "#f4f1ea",
+        backgroundColor: "var(--nc-surface-2)",
         preserveObjectStacking: true,
       });
       fabricRef.current = canvas;
@@ -493,7 +493,7 @@ const CalendarWorkspace = forwardRef(
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
-            background: "#EDE7D9",
+            background: "var(--nc-well)",
             borderRadius: 2,
             p: { xs: 1.5, sm: 3 },
           }}

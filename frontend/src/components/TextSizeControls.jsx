@@ -66,7 +66,7 @@ const TextSizeControls = ({ variant, values = {}, onChange, fits = {} }) => {
               <Typography variant="caption" sx={{ width: 38, textAlign: "right", fontWeight: value !== 100 ? 700 : 400 }}>{value}%</Typography>
             </Box>
             {value > 100 && cappedSlot(key) && (
-              <Typography variant="caption" sx={{ color: "var(--mui-palette-gold-text)", display: "block", ml: "108px" }}>
+              <Typography variant="caption" sx={{ color: "var(--nc-gold-text)", display: "block", ml: "108px" }}>
                 Max size for this panel — the text already fills it.
               </Typography>
             )}

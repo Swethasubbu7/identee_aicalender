@@ -56,8 +56,22 @@ export const uploadDesignThumbnail = async (id, blob) => {
   return response.data;
 };
 
-// Deletes the designer's own project (and its AI designs).
+// Deletes one of the designer's own drafts. Its generated designs are kept.
 export const deleteDesign = async (id) => {
   const response = await axios.delete(`${API_BASE_URL}/${id}`, { headers: authHeaders() });
+  return response.data;
+};
+
+// Deletes the designer's own selected drafts → { deleted: [id], notFound: [id] }.
+// Generated designs, layouts and production files are never affected.
+export const bulkDeleteDesigns = async (ids) => {
+  const response = await axios.post(`${API_BASE_URL}/bulk-delete`, { ids }, { headers: authHeaders() });
+  return response.data;
+};
+
+// Free God-image tools on the server (no AI): op "remove-background" | "enhance".
+// Returns a NEW image { path, url, widthPx, heightPx, … } to preview before applying.
+export const processGodImage = async ({ source, op, targetLongPx }) => {
+  const response = await axios.post(`${API_BASE_URL}/god-image/process`, { source, op, targetLongPx }, { headers: authHeaders() });
   return response.data;
 };

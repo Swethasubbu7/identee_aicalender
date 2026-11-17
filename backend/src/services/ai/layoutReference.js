@@ -148,6 +148,10 @@ const buildStyleReference = async (variant) => {
 // Colours of the Special Die-Cut layout guide (explained in the prompt).
 const GUIDE = { outside: "#ffffff", board: "#9a9a9a", text: "#f3ead2", cake: "#3b6fd8", product: "#7bc96f" };
 const TEXT_PANEL_ROLES = ["NAME_TEXT", "TEXT_LINE_1", "TEXT_LINE_2"];
+// Print bleed painted past the cutline (mm); the app cuts with the exact cutline.
+const BLEED_MM = 3;
+// A text line's plaque is a little larger than the text itself.
+const plaqueBox = (b) => ({ x: b.x - 4, y: b.y - b.height * 0.35, width: b.width + 8, height: b.height * 1.7 });
 
 /**
  * Special Die-Cut (FULL_ARTWORK): the production geometry as a picture the
@@ -181,9 +185,24 @@ const buildArtworkGuide = async (variant, options = {}) => {
   // The right box set to "image" without an uploaded photo: the AI paints a
   // product picture there (green); every other shown section is a panel.
   const productArea = (r) => r.role === "SIDE_BOX_RIGHT" && options.aiProductImage === true;
-  const textPanels = regions
-    .filter((r) => PANEL_ROLES.includes(r.role) && enabled(r) && !productArea(r))
-    .map((r) => rect(TEXT_PANEL_ROLES.includes(r.role) ? r.textBox || r.box : r.box, GUIDE.text));
+  const plaques = [];
+  for (const r of regions.filter((x) => TEXT_PANEL_ROLES.includes(x.role) && enabled(x))) {
+    let b = plaqueBox(r.textBox || r.box);
+    for (let k = plaques.length - 1; k >= 0; k -= 1) {
+      const p = plaques[k];
+      if (b.y <= p.y + p.height + 2 && p.y <= b.y + b.height + 2) {
+        b = unionOf([b, p]);
+        plaques.splice(k, 1);
+      }
+    }
+    plaques.push(b);
+  }
+  const textPanels = [
+    ...plaques.map((b) => rect(b, GUIDE.text)),
+    ...regions
+      .filter((r) => PANEL_ROLES.includes(r.role) && !TEXT_PANEL_ROLES.includes(r.role) && enabled(r) && !productArea(r))
+      .map((r) => rect(r.box, GUIDE.text)),
+  ];
   const productAreas = regions.filter((r) => PANEL_ROLES.includes(r.role) && enabled(r) && productArea(r));
   textPanels.push(...productAreas.map((r) => rect(r.box, GUIDE.product)));
   const panelCount = textPanels.length - productAreas.length;
@@ -194,7 +213,7 @@ const buildArtworkGuide = async (variant, options = {}) => {
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${widthPx}" height="${heightPx}" ` +
     `viewBox="${box.x} ${box.y} ${box.width} ${box.height}" preserveAspectRatio="none">` +
-    `${rect(box, GUIDE.outside)}<path d="${variant.cutline.path}" fill="${GUIDE.board}"/>` +
+    `${rect(box, GUIDE.outside)}<path d="${variant.cutline.path}" fill="${GUIDE.board}" stroke="${GUIDE.board}" stroke-width="${2 * BLEED_MM}" stroke-linejoin="round"/>` +
     `<g clip-path="url(#cut)">${textPanels.join("")}` +
     (cake ? rect(cake.box, GUIDE.cake, `fill-opacity="0.85"`) : "") +
     `</g><defs><clipPath id="cut"><path d="${variant.cutline.path}"/></clipPath></defs></svg>`;
@@ -239,7 +258,36 @@ const buildTemplateReference = async (variant, options = {}) => {
     return { buffer, mimeType: "image/jpeg", removedSections: 0 };
   }
   const { width, height } = await sharp(plateFile).metadata();
-  const layers = [{ input: await sharp(plateFile).png().toBuffer(), left: 0, top: 0 }];
+  const layers = [];
+  // A layout whose artwork was replaced / enlarged keeps that artwork apart
+  // from the plate (the plate is transparent there): put it underneath, so
+  // the AI sees the real hand-made design, not an almost empty page.
+  const override = variant.assets?.artworkOverride;
+  const artRegion = override?.path
+    ? (variant.regions || []).find((r) => r.role === (override.regionRole || "BACKGROUND_AREA"))
+    : null;
+  const artFile = artRegion ? await storedInput(override.path) : null;
+  if (artFile && variant.trim?.widthMm) {
+    const pxPerMm = width / variant.trim.widthMm;
+    const b = artRegion.box;
+    const w = Math.max(1, Math.round(b.width * pxPerMm));
+    const h = Math.max(1, Math.round(b.height * pxPerMm));
+    const x = Math.round(b.x * pxPerMm);
+    const y = Math.round(b.y * pxPerMm);
+    const left = Math.max(0, x);
+    const top = Math.max(0, y);
+    const cw = Math.min(width, x + w) - left;
+    const ch = Math.min(height, y + h) - top;
+    if (cw > 0 && ch > 0) {
+      const art = await sharp(artFile)
+        .resize(w, h, { fit: "fill" })
+        .extract({ left: left - x, top: top - y, width: cw, height: ch })
+        .png()
+        .toBuffer();
+      layers.push({ input: art, left, top });
+    }
+  }
+  layers.push({ input: await sharp(plateFile).png().toBuffer(), left: 0, top: 0 });
   if (overlayFile) {
     layers.push({ input: await sharp(overlayFile).resize(width, height, { fit: "fill" }).png().toBuffer(), left: 0, top: 0 });
   }
@@ -258,7 +306,7 @@ const buildTemplateReference = async (variant, options = {}) => {
     .composite(layers)
     .png()
     .toBuffer();
-  const buffer = await sharp(composed).resize({ width: 1024, height: 1024, fit: "inside" }).jpeg({ quality: 85 }).toBuffer();
+  const buffer = await sharp(composed).resize({ width: 1536, height: 1536, fit: "inside" }).jpeg({ quality: 88 }).toBuffer();
   return { buffer, mimeType: "image/jpeg", removedSections: removed.length };
 };
 

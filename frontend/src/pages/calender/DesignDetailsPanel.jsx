@@ -27,9 +27,9 @@ const DesignDetailsPanel = ({ variant, values, onChange, status, fits = {} }) =>
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1.75 }} data-testid="design-details">
       <Box sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>
         <Typography sx={{ fontWeight: 700, flexGrow: 1 }}>Business details</Typography>
-        <Typography variant="caption" sx={{ color: "var(--mui-palette-text-secondary)" }}>{status}</Typography>
+        <Typography variant="caption" sx={{ color: "var(--nc-text-2)" }}>{status}</Typography>
       </Box>
-      <Typography variant="caption" sx={{ color: "var(--mui-palette-text-secondary)", mt: -1 }}>
+      <Typography variant="caption" sx={{ color: "var(--nc-text-2)", mt: -1 }}>
         Change the customer&apos;s details on this design — free, no new AI image. The artwork stays exactly as generated.
       </Typography>
       {slots.filter(shown).map((slot) => (
@@ -46,7 +46,7 @@ const DesignDetailsPanel = ({ variant, values, onChange, status, fits = {} }) =>
           slotProps={{ htmlInput: { maxLength: MAX_LENGTH[slot.key] || 2000 } }}
         />
         {smallest(slot) !== null && smallest(slot) < readablePt(slot.key) && (
-          <Typography variant="caption" sx={{ color: "var(--mui-palette-error-main)", display: "block", mt: 0.5 }}>
+          <Typography variant="caption" sx={{ color: "#d32f2f", display: "block", mt: 0.5 }}>
             Too long to read clearly ({smallest(slot).toFixed(1)} pt) — shorten this text or put it on one line.
           </Typography>
         )}
@@ -69,7 +69,7 @@ const DesignDetailsPanel = ({ variant, values, onChange, status, fits = {} }) =>
       <TextSizeControls variant={variant} values={values} onChange={onChange} fits={fits} />
       {sections.length > 0 && (
         <Box>
-          <Typography variant="caption" sx={{ color: "var(--mui-palette-text-secondary)", display: "block" }}>Show on the calendar</Typography>
+          <Typography variant="caption" sx={{ color: "var(--nc-text-2)", display: "block" }}>Show on the calendar</Typography>
           <Box sx={{ display: "flex", flexWrap: "wrap", columnGap: 1 }}>
             {sections.map((key) => (
               <FormControlLabel

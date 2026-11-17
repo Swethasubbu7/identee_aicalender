@@ -38,6 +38,7 @@ const { getStorage } = require("../services/storage");
 const User = require("../models/User");
 
 const CONTENT_PREFIX = "/uploads/design-content/";
+const { fontStyleOf, textColourOf, textSizesOf, godPlacementOf, EDIT_AREAS, areaEditOf } = require("../constants/typography");
 const MM_PER_IN = 25.4;
 
 
@@ -61,7 +62,8 @@ const contentImage = async (value) => {
 };
 
 const serializeJob = async (job, req) => {
-  const obj = job.toObject ? job.toObject() : job;
+  const { errorDetail, runnerId, heartbeatAt, ...rest } = job.toObject ? job.toObject() : job;
+  const obj = { ...rest, variations: (rest.variations || []).map(({ errorDetail: _detail, ...v }) => v) };
   const ids = [...new Set(obj.variations.map((v) => String(v.variantId)))];
   const variants = await LayoutVariant.find({ _id: { $in: ids } }).populate("familyId", "code name status");
   // Designers do not get the mapping; rendering the layers only needs where
@@ -90,6 +92,7 @@ const serializeJob = async (job, req) => {
       godImageUrl: toPublicUrl(obj.content.godImage),
       productImageUrl: toPublicUrl(obj.content.productImage),
       productImageEnhancedUrl: toPublicUrl(obj.content.productImageEnhanced),
+      leftBoxImageUrl: toPublicUrl(obj.content.leftBoxImage),
     },
     variations: obj.variations.map((v) => ({
       ...v,
@@ -210,6 +213,12 @@ const readOptions = (body) => ({
   showTextLine1: body.showTextLine1 !== false && body.showTextLine1 !== "false",
   showTextLine2: body.showTextLine2 !== false && body.showTextLine2 !== "false",
   rightBoxMode: body.rightBoxMode === "text" ? "text" : "image",
+  leftBoxMode: body.leftBoxMode === "image" ? "image" : "text",
+  // Typography chosen in Customise (validated; "" / {} = automatic).
+  fontStyle: fontStyleOf(body.fontStyle),
+  textColour: textColourOf(body.textColour),
+  textSizes: textSizesOf(body.textSizes),
+  godPlacement: godPlacementOf(body.godPlacement),
 });
 
 const formatOf = (variant) =>
@@ -237,9 +246,24 @@ const createAdminTestImage = (req, res) => {
   return startJob(req, res, { adminTest: true, mode: "ai" });
 };
 
+// One AI Generate start per designer at a time on this server: a double
+// click (or two tabs) cannot pass the "already running" check twice and
+// start two paid generations. Normal Mode (free) is not affected.
+// The lock is released in this handler's own finally, in the same step as
+// the response, so the designer's next request is never refused by it.
+const startingAi = new Set();
 const startJob = async (req, res, { adminTest, mode: forcedMode = null }) => {
+  let lockKey = null;
   try {
     const mode = forcedMode || (req.body.mode === "ai" ? "ai" : "normal");
+    if (mode === "ai") {
+      const key = String(req.user?.userId);
+      if (startingAi.has(key)) {
+        return res.status(409).json({ message: "A Generate is already starting — wait for it to finish." });
+      }
+      startingAi.add(key);
+      lockKey = key;
+    }
     const { variantId } = req.body;
     const selected = await LayoutVariant.findById(variantId).catch(() => null);
     if (!canUseLayout(req, selected)) {
@@ -253,11 +277,17 @@ const startJob = async (req, res, { adminTest, mode: forcedMode = null }) => {
     }
 
     const requested = readOptions(req.body);
-    const godImage = mode === "ai" ? await contentImage(req.body.godImage) : null;
+    // Normal Mode: the customer's God image is optional (without one the
+    // layout's own God picture is kept); AI Mode needs one.
+    const godImage = await contentImage(req.body.godImage);
     const wantsProductImage = requested.showRightBox && requested.rightBoxMode === "image";
     const productImage = wantsProductImage ? await contentImage(req.body.productImage) : null;
+    const wantsLeftImage = requested.showLeftBox && requested.leftBoxMode === "image";
+    const leftBoxImage = wantsLeftImage ? await contentImage(req.body.leftBoxImage) : null;
+    if (godImage === undefined) return res.status(400).json({ message: "Invalid God image." });
     if (mode === "ai" && !godImage) return res.status(400).json({ message: "Upload the god image first." });
     if (productImage === undefined) return res.status(400).json({ message: "Invalid product image." });
+    if (leftBoxImage === undefined) return res.status(400).json({ message: "Invalid left box image." });
     const content = {
       businessName: text(req.body.businessName, 200),
       productList: text(req.body.productList, 2000),
@@ -265,6 +295,7 @@ const startJob = async (req, res, { adminTest, mode: forcedMode = null }) => {
       godImage: godImage || null,
       productImage: productImage || null,
       rightBoxText: requested.rightBoxMode === "text" ? text(req.body.rightBoxText, 1000) : "",
+      leftBoxImage: leftBoxImage || null,
     };
     // A section left empty is treated as switched off: its whole box / strip
     // is removed (Normal) or its space becomes artwork (AI). In AI mode a
@@ -337,6 +368,8 @@ const startJob = async (req, res, { adminTest, mode: forcedMode = null }) => {
   } catch (error) {
     console.error("Create calendar job error:", error);
     res.status(500).json({ message: "Failed to start the generation" });
+  } finally {
+    if (lockKey) startingAi.delete(lockKey);
   }
 };
 
@@ -440,6 +473,70 @@ const listJobs = async (req, res) => {
   }
 };
 
+// PUT /api/ai-calendars/:id/variations/:index/name-style  { size, colour }
+// AI Mode only, after the design is generated: the business name's size and
+// colour for this one design. Only the name changes — the AI picture, the
+// layout and every other text and box stay exactly as generated (the app
+// draws the name on its own). No AI request. The design's earlier PDFs no
+// longer match, so their links are cleared (the files are kept).
+// PUT /api/ai-calendars/:id/variations/:index/edits  { area, text?, size?, colour? }
+// AI Mode only, after the design is generated: one area of THIS design —
+// "name" (business name), "left" (left box text) or "right" (right box
+// text). Only that area's edit is stored; the other areas, the original
+// content and the AI picture are never changed. Empty body fields = reset.
+// No AI request. The design's earlier PDFs no longer match: their links are
+// cleared (the files are kept).
+const AREA_ROLE = { left: "SIDE_BOX_LEFT", right: "SIDE_BOX_RIGHT" };
+const saveAreaEdit = async (req, res, area) => {
+  try {
+    const { job, index, variant } = await loadVariation(req, res);
+    if (!job) return;
+    if (job.mode !== "ai") {
+      return res.status(409).json({ message: "Only AI designs can be edited after generation." });
+    }
+    if (!EDIT_AREAS.includes(area)) return res.status(400).json({ message: "Unknown area" });
+    const options = job.options || {};
+    const regions = variant.regions || [];
+    const exists =
+      area === "name" ? regions.some((r) => r.binding === "businessName") : regions.some((r) => r.role === AREA_ROLE[area]);
+    if (!exists) return res.status(409).json({ message: "This layout has no such area." });
+    // A box showing a picture has no text to edit (an AI-painted product
+    // picture is part of the AI artwork).
+    if (area === "left" && (options.showLeftBox === false || options.leftBoxMode === "image")) {
+      return res.status(409).json({ message: "The left side shows a picture or is switched off: it has no text to edit." });
+    }
+    if (area === "right" && (options.showRightBox === false || options.rightBoxMode !== "text")) {
+      return res.status(409).json({ message: "The right side shows a picture or is switched off: it has no text to edit." });
+    }
+    const value = areaEditOf(req.body);
+    const v = `variations.${index}`;
+    // A design without edits gets an empty edits object first (atomically),
+    // so two areas saved at the same moment never overwrite each other.
+    await AiCalendarJob.updateOne({ _id: job._id, [`${v}.status`]: "DONE", [`${v}.edits`]: null }, { $set: { [`${v}.edits`]: {} } });
+    const updated = await AiCalendarJob.findOneAndUpdate(
+      { _id: job._id, [`${v}.status`]: "DONE" },
+      {
+        $set: {
+          [`${v}.edits.${area}`]: value,
+          // The first version kept the name's style here; the edits replace it.
+          ...(area === "name" && { [`${v}.nameStyle`]: null }),
+          [`${v}.exportPdf`]: null,
+          [`${v}.exportCutlinePdf`]: null,
+        },
+      },
+      { returnDocument: "after" },
+    );
+    if (!updated) return res.status(409).json({ message: "This design is not ready" });
+    res.status(200).json({ job: await serializeJob(updated, req) });
+  } catch (error) {
+    console.error("Design edit error:", error);
+    res.status(500).json({ message: "Failed to save the change" });
+  }
+};
+const setAreaEdit = (req, res) => saveAreaEdit(req, res, String(req.body?.area || ""));
+// PUT …/name-style  { size, colour } — the business name (first version).
+const setNameStyle = (req, res) => saveAreaEdit(req, res, "name");
+
 // PUT /api/ai-calendars/:id/variations/:index/preview  multipart: preview (JPEG/PNG)
 // Saves the finished design picture shown in the gallery (replaces the old one).
 const savePreview = async (req, res) => {
@@ -503,17 +600,32 @@ const regenerateVariation = async (req, res) => {
         estimate,
       });
     }
-    job.variations[index].status = "PENDING";
-    job.variations[index].error = null;
-    job.variations[index].exportPdf = null;
-    job.variations[index].exportCutlinePdf = null;
-    job.variations[index].previewImage = null;
-    job.status = "RUNNING";
-    job.progress = `Regenerating design ${index + 1}`;
-    job.error = null;
-    await job.save();
-    enqueueRegeneration(job._id, index);
-    res.status(202).json({ job: await serializeJob(job, req) });
+    // Claimed atomically: only one of two simultaneous clicks gets the job.
+    const v = `variations.${index}`;
+    const claimed = await AiCalendarJob.findOneAndUpdate(
+      { _id: job._id, status: { $nin: ["QUEUED", "RUNNING"] }, [`${v}.status`]: { $ne: "RUNNING" } },
+      {
+        $set: {
+          [`${v}.status`]: "PENDING",
+          [`${v}.error`]: null,
+          [`${v}.errorKind`]: null,
+          [`${v}.errorDetail`]: null,
+          [`${v}.exportPdf`]: null,
+          [`${v}.exportCutlinePdf`]: null,
+          [`${v}.previewImage`]: null,
+          status: "RUNNING",
+          progress: `Regenerating design ${index + 1}`,
+          error: null,
+          errorKind: null,
+          errorDetail: null,
+          heartbeatAt: new Date(),
+        },
+      },
+      { new: true },
+    );
+    if (!claimed) return res.status(409).json({ message: "Wait until the current generation has finished." });
+    enqueueRegeneration(claimed._id, index);
+    res.status(202).json({ job: await serializeJob(claimed, req) });
   } catch (error) {
     console.error("Regenerate error:", error);
     res.status(500).json({ message: "Failed to regenerate this design" });
@@ -847,4 +959,6 @@ module.exports = {
   sourcePdf,
   exportPdf,
   downloadPdf,
+  setNameStyle,
+  setAreaEdit,
 };

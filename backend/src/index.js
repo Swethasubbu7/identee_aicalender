@@ -16,7 +16,15 @@ const layoutVariantRoutes = require("./routes/layoutVariant.routes");
 const aiCalendarRoutes = require("./routes/aiCalendar.routes");
 const aiUsageRoutes = require("./routes/aiUsage.routes");
 const filesRoutes = require("./routes/files.routes");
-const { recoverInterruptedJobs } = require("./services/ai/calendarJobRunner");
+const godImageRoutes = require("./routes/godImage.routes");
+const { recoverInterruptedJobs, startInterruptedSweep } = require("./services/ai/calendarJobRunner");
+
+// A stray rejected promise (e.g. a database call during a network drop) is
+// logged instead of stopping the server: stopping would abandon AI requests
+// that are already paid for and in progress.
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled promise rejection (server keeps running):", reason?.stack || reason);
+});
 const path = require("path");
 const app = express();
 
@@ -38,6 +46,8 @@ app.use("/api/layout-families", layoutFamilyRoutes);
 app.use("/api/layout-variants", layoutVariantRoutes);
 app.use("/api/ai-calendars", aiCalendarRoutes);
 app.use("/api/ai-usage", aiUsageRoutes);
+// Default God-image library (search / add / rename).
+app.use("/api/god-images", godImageRoutes);
 // Shared design images (GridFS or local fallback), login / signed link only.
 app.use("/api/files", filesRoutes);
 // AI design and customer folders are never public: their images go through
@@ -61,6 +71,7 @@ mongoose
   .then(() => {
     console.log("MongoDB connected successfully ✅");
     recoverInterruptedJobs().catch((err) => console.error("AI job recovery failed:", err.message));
+    startInterruptedSweep();
   })
   .catch((error) => {
     console.error("MongoDB connection failed ❌", error.message);

@@ -34,8 +34,10 @@ import {
   downloadAiCalendarPdf,
   saveAiVariationPreview,
   saveDesignAsLayout,
+  setAiVariationEdit,
 } from "../../services/aiCalendarService";
-import { composeVariationPreview, exportVariationPdf } from "../../utils/aiCalendarCompose";
+import DesignEditPanel from "../../components/DesignEditPanel";
+import { composeVariationPreview, editsOf, exportVariationPdf } from "../../utils/aiCalendarCompose";
 import { useCostConfirmation } from "../../components/CostConfirmDialog";
 import { compositionMode, disabledSections, effectiveOptions } from "../../utils/composition";
 
@@ -47,7 +49,14 @@ const apiMessage = (err, fallback) => err.response?.data?.message || err.message
 
 const STATUS_COLOR = { PASS: "success", WARN: "warning", FAIL: "error", PENDING: "default" };
 
-const DesignCard = ({ job, variation, picture, selected, busy, onSelect, onRegenerate, onDownload }) => {
+const dropKey = (all, key) => {
+  if (!(key in all)) return all;
+  const next = { ...all };
+  delete next[key];
+  return next;
+};
+
+const DesignCard = ({ job, variation, picture, composeError, onRecompose, selected, busy, onSelect, onRegenerate, onDownload }) => {
   const { variant, theme, recipe } = variation;
   const working = ["PENDING", "RUNNING"].includes(variation.status);
   // Normal Mode and older previews are made by the app (never AI).
@@ -62,19 +71,32 @@ const DesignCard = ({ job, variation, picture, selected, busy, onSelect, onRegen
         maxWidth: 320,
         borderRadius: 3,
         border: `2px solid ${selected ? GOLD : "rgba(176,141,53,0.2)"}`,
-        background: "#FFFFFF",
+        background: "var(--nc-paper)",
         p: 1.5,
         display: "flex",
         flexDirection: "column",
       }}
     >
-      <Box sx={{ background: "#F3EEE2", borderRadius: 2, minHeight: 320, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <Box sx={{ background: "var(--nc-surface-2)", borderRadius: 2, minHeight: 320, display: "flex", alignItems: "center", justifyContent: "center" }}>
         {picture ? (
           <Box component="img" src={picture} alt={`Design ${variation.index + 1}`} sx={{ width: "100%", display: "block", borderRadius: 2 }} />
         ) : variation.status === "FAILED" ? (
           <Alert severity="error" sx={{ m: 2 }}>{variation.error || "This design could not be generated."}</Alert>
+        ) : composeError && job.mode === "ai" ? (
+          // The AI picture is saved; only drawing the calendar failed (free to retry).
+          <Alert
+            severity="warning"
+            sx={{ m: 2 }}
+            action={
+              <Button color="inherit" size="small" onClick={() => onRecompose(variation)}>
+                Retry
+              </Button>
+            }
+          >
+            The design is saved, but the calendar could not be drawn: {composeError}
+          </Alert>
         ) : (
-          <Box sx={{ textAlign: "center", color: "#7A7266" }}>
+          <Box sx={{ textAlign: "center", color: "var(--nc-text-2)" }}>
             <CircularProgress size={28} sx={{ color: GOLD }} />
             <Typography variant="body2" sx={{ mt: 1 }}>{working && !preview ? "AI is designing…" : "Composing…"}</Typography>
           </Box>
@@ -149,6 +171,16 @@ const AIDesigns = () => {
   const [error, setError] = useState("");
   const [pollKey, setPollKey] = useState(0);
   const [previews, setPreviews] = useState({}); // key → { url, fits }
+  // AI designs whose calendar could not be drawn: key → message.
+  const [composeErrors, setComposeErrors] = useState({});
+  const [composeTick, setComposeTick] = useState(0);
+  const pollFailed = useRef(false);
+  // Edits after generation (AI designs): saving state per area, and designs
+  // whose gallery picture must be saved again once they are drawn edited.
+  const [editSave, setEditSave] = useState({ saving: {}, errors: {} });
+  const editTimers = useRef({});
+  const nameEdited = useRef(new Set());
+  const editSaving = Object.values(editSave.saving).some(Boolean);
   const [productChoice, setProductChoice] = useState("original");
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [check, setCheck] = useState({ loading: false, result: null, error: "" });
@@ -163,14 +195,27 @@ const AIDesigns = () => {
   useEffect(() => {
     let cancelled = false;
     let timer = null;
+    let lastJob = null;
     const poll = async () => {
       try {
         const fresh = await getAiCalendarJob(jobId);
         if (cancelled) return;
+        lastJob = fresh;
         setJob(fresh);
+        if (pollFailed.current) {
+          pollFailed.current = false;
+          setError("");
+        }
         if (!FINISHED.includes(fresh.status)) timer = setTimeout(poll, POLL_MS);
       } catch (err) {
-        if (!cancelled) setError(apiMessage(err, "Could not load the designs"));
+        if (cancelled) return;
+        setError(apiMessage(err, "Could not load the designs"));
+        // An unfinished AI generation keeps being watched through a short
+        // network drop (status checks are free; nothing is re-generated).
+        if (lastJob?.mode === "ai" && !FINISHED.includes(lastJob.status)) {
+          pollFailed.current = true;
+          timer = setTimeout(poll, POLL_MS * 3);
+        }
       }
     };
     poll();
@@ -180,7 +225,9 @@ const AIDesigns = () => {
     };
   }, [jobId, pollKey]);
 
-  const previewKey = (v) => `${v.index}:${v.godImage}:${v.background}:${productChoice}`;
+  const previewKey = (v) =>
+    `${v.index}:${v.godImage}:${v.background}:${productChoice}` +
+    (job && editsOf(job, v) ? `:${JSON.stringify(editsOf(job, v))}` : "");
 
   // Compose each finished design (again when the product photo choice changes).
   useEffect(() => {
@@ -192,15 +239,32 @@ const AIDesigns = () => {
       composeVariationPreview(job, v, productChoice)
         .then((p) => {
           setPreviews((all) => ({ ...all, [key]: p }));
+          setComposeErrors((all) => dropKey(all, key));
           // Keep a picture of the finished design for the Dashboard gallery.
           if (!v.previewUrl && productChoice === "original") {
             saveAiVariationPreview(job._id, v.index, p.blob).catch(() => {});
+          } else if (job.mode === "ai" && productChoice === "original" && nameEdited.current.has(previewKey(v))) {
+            // Business name edited: the gallery shows the design as it is now.
+            nameEdited.current.delete(previewKey(v));
+            saveAiVariationPreview(job._id, v.index, p.blob).catch(() => {});
           }
         })
-        .catch(() => composing.current.delete(key));
+        .catch((err) => {
+          composing.current.delete(key);
+          if (job.mode === "ai") {
+            console.error(`Design ${v.index + 1} could not be composed:`, err);
+            setComposeErrors((all) => ({ ...all, [key]: err?.message || "unknown error" }));
+          }
+        });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [job, productChoice]);
+  }, [job, productChoice, composeTick]);
+
+  // Draw a design again after a composition error (in the browser, no AI).
+  const recompose = (v) => {
+    setComposeErrors((all) => dropKey(all, previewKey(v)));
+    setComposeTick((t) => t + 1);
+  };
 
   const backToCustomise = () =>
     job
@@ -211,6 +275,35 @@ const AIDesigns = () => {
     setCheck({ loading: false, result: null, error: "" });
     setExporting({ step: "", result: null, error: "" });
     setSaving((v) => ({ ...v, busy: false, result: null, error: "" }));
+  };
+
+  // AI designs: one area (business name, left side, right side) of the
+  // selected design. Shown at once (the design is drawn again in the
+  // browser) and saved shortly after; earlier print check / export no
+  // longer match. Each area is saved on its own.
+  const changeEdit = (index, area, edit) => {
+    const withEdit = (x) => ({
+      ...x,
+      edits: { ...(editsOf(job, x) || {}), [area]: edit },
+      ...(area === "name" ? { nameStyle: null } : {}),
+      exportPdfUrl: null,
+    });
+    nameEdited.current.add(previewKey(withEdit(job.variations[index])));
+    setJob((j) => ({ ...j, variations: j.variations.map((x) => (x.index === index ? withEdit(x) : x)) }));
+    resetSelection();
+    setEditSave((s) => ({ saving: { ...s.saving, [area]: true }, errors: { ...s.errors, [area]: "" } }));
+    clearTimeout(editTimers.current[area]);
+    editTimers.current[area] = setTimeout(async () => {
+      try {
+        await setAiVariationEdit(job._id, index, area, edit);
+        setEditSave((s) => ({ ...s, saving: { ...s.saving, [area]: false } }));
+      } catch (err) {
+        setEditSave((s) => ({
+          saving: { ...s.saving, [area]: false },
+          errors: { ...s.errors, [area]: apiMessage(err, "Could not save the change") },
+        }));
+      }
+    }, 500);
   };
 
   const choose = (index) => {
@@ -279,7 +372,16 @@ const AIDesigns = () => {
 
   const running = !FINISHED.includes(job.status);
   const selected = selectedIndex !== null ? job.variations[selectedIndex] : null;
-  const selectedPreview = selected ? previews[previewKey(selected)] : null;
+  // While an AI design is drawn again with an edited business name, its
+  // previous picture stays on screen (the editor never disappears mid-drag).
+  const earlierPreview = (v) => {
+    const base = `${v.index}:${v.godImage}:${v.background}:${productChoice}`;
+    const keys = Object.keys(previews).filter((k) => k === base || k.startsWith(`${base}:`));
+    return keys.length ? previews[keys[keys.length - 1]] : null;
+  };
+  const selectedPreview = selected
+    ? previews[previewKey(selected)] || (job.mode === "ai" ? earlierPreview(selected) : null)
+    : null;
   const step = !selected ? 0 : exporting.result ? 3 : check.result ? 2 : 1;
   // Sections switched off or left empty (their space is artwork).
   const sketchJob = job.mode === "preview" && compositionMode(job.variations[0]?.variant) === "FULL_ARTWORK";
@@ -322,9 +424,9 @@ const AIDesigns = () => {
     );
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", background: "#FAF6EC" }}>
+    <Box sx={{ display: "flex", minHeight: "100vh", background: "var(--nc-bg)" }}>
       {costDialog}
-      <AppSidebar activeKey="layouts" />
+      <AppSidebar />
       <Box sx={{ flexGrow: 1, minWidth: 0 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 3, py: 1.5, background: "#161616", flexWrap: "wrap" }}>
           <IconButton size="small" onClick={backToCustomise} sx={{ color: "#E9C767" }} title="Back to Customise">
@@ -354,7 +456,7 @@ const AIDesigns = () => {
           {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>{error}</Alert>}
           {running && (
             <Box sx={{ mb: 2 }}>
-              <Typography variant="body2" sx={{ color: "#7A7266", mb: 0.5 }}>
+              <Typography variant="body2" sx={{ color: "var(--nc-text-2)", mb: 0.5 }}>
                 {job.progress} — usually about a minute. You can leave this page; the designs are saved.
               </Typography>
               <LinearProgress />
@@ -435,6 +537,8 @@ const AIDesigns = () => {
                 job={job}
                 variation={v}
                 picture={previews[previewKey(v)]?.url}
+                composeError={composeErrors[previewKey(v)]}
+                onRecompose={recompose}
                 selected={selectedIndex === v.index}
                 busy={running}
                 onSelect={choose}
@@ -448,7 +552,7 @@ const AIDesigns = () => {
 
           {selected && selectedPreview && (
             <Box sx={{ mt: 4, display: "grid", gridTemplateColumns: { xs: "1fr", lg: "minmax(0, 1fr) 420px" }, gap: 3, alignItems: "start" }}>
-              <Box sx={{ background: "#EDE7D9", borderRadius: 2, p: 2, textAlign: "center" }}>
+              <Box sx={{ background: "var(--nc-well)", borderRadius: 2, p: 2, textAlign: "center" }}>
                 <Typography sx={{ fontWeight: 700, mb: 1, textAlign: "left" }}>Preview · Design {selected.index + 1}</Typography>
                 <Box
                   component="img"
@@ -458,12 +562,26 @@ const AIDesigns = () => {
                 />
               </Box>
 
-              <Box sx={{ background: "#fff", borderRadius: 2, p: 2.5, border: "1px solid rgba(176,141,53,0.2)" }}>
+              <Box sx={{ background: "var(--nc-paper)", borderRadius: 2, p: 2.5, border: "1px solid rgba(176,141,53,0.2)" }}>
+                {job.mode === "ai" && selected.status === "DONE" && (
+                  <Box sx={{ mb: 3 }}>
+                    <DesignEditPanel
+                      key={selected.index}
+                      job={job}
+                      variation={selected}
+                      edits={editsOf(job, selected)}
+                      fits={selectedPreview.fits || {}}
+                      saving={editSave.saving}
+                      errors={editSave.errors}
+                      onChange={(area, edit) => changeEdit(selected.index, area, edit)}
+                    />
+                  </Box>
+                )}
                 <Typography sx={{ fontWeight: 700, mb: 1 }}>Print check</Typography>
                 <Button
                   variant={check.result ? "outlined" : "contained"}
                   startIcon={check.loading ? <CircularProgress size={18} color="inherit" /> : <FactCheckOutlinedIcon />}
-                  disabled={check.loading || Boolean(exporting.step)}
+                  disabled={check.loading || Boolean(exporting.step) || editSaving}
                   onClick={runCheck}
                   fullWidth
                 >
@@ -477,7 +595,7 @@ const AIDesigns = () => {
                         <Chip size="small" color={STATUS_COLOR[c.status]} label={c.status} sx={{ minWidth: 76 }} />
                         <Box>
                           <Typography variant="body2" sx={{ fontWeight: 600 }}>{c.label}</Typography>
-                          <Typography variant="caption" sx={{ color: "#7A7266" }}>{c.detail}</Typography>
+                          <Typography variant="caption" sx={{ color: "var(--nc-text-2)" }}>{c.detail}</Typography>
                         </Box>
                       </Box>
                     ))}
@@ -485,7 +603,7 @@ const AIDesigns = () => {
                 )}
 
                 <Typography sx={{ fontWeight: 700, mt: 3, mb: 1 }}>Save as a reusable layout</Typography>
-                <Typography variant="caption" sx={{ color: "#7A7266", display: "block", mb: 1 }}>
+                <Typography variant="caption" sx={{ color: "var(--nc-text-2)", display: "block", mb: 1 }}>
                   {job.mode === "ai"
                     ? "Keeps this AI artwork with the layout's production geometry, so future projects reuse it without generating again."
                     : "Keeps this box style with the layout's artwork and production geometry for future projects."}{" "}
@@ -534,13 +652,13 @@ const AIDesigns = () => {
                   variant="contained"
                   fullWidth
                   startIcon={exporting.step ? <CircularProgress size={18} color="inherit" /> : <PictureAsPdfOutlinedIcon />}
-                  disabled={!check.result || check.result.status === "FAIL" || Boolean(exporting.step)}
+                  disabled={!check.result || check.result.status === "FAIL" || Boolean(exporting.step) || editSaving}
                   onClick={runExport}
                 >
                   {exporting.step ? `${exporting.step}…` : "Export printable PDF"}
                 </Button>
                 {!check.result && (
-                  <Typography variant="caption" sx={{ color: "#7A7266", display: "block", mt: 0.5 }}>
+                  <Typography variant="caption" sx={{ color: "var(--nc-text-2)", display: "block", mt: 0.5 }}>
                     Run the print check first.
                   </Typography>
                 )}

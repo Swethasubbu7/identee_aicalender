@@ -1,4 +1,4 @@
-import { Box, Chip, IconButton, Tooltip, Typography } from "@mui/material";
+import { Box, Checkbox, Chip, IconButton, Tooltip, Typography } from "@mui/material";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import { CUT_TYPE_LABELS } from "../constants/cutTypes";
 
@@ -42,24 +42,52 @@ const describeDesign = (design) => {
   };
 };
 
-const DesignCard = ({ design, onOpen, onDelete, deleting = false }) => {
+// onToggleSelect (optional) adds a selection checkbox; while any card is
+// selected (selectionMode), clicking a card selects it instead of opening it.
+const DesignCard = ({ design, onOpen, onDelete, deleting = false, selected = false, onToggleSelect, selectionMode = false }) => {
   const { link, title, subtitle, preview } = describeDesign(design);
   const saved = design.status === "saved";
+  const selecting = Boolean(onToggleSelect) && selectionMode;
   return (
     <Box
-      onClick={() => link && !deleting && onOpen(link)}
+      onClick={() => {
+        if (deleting) return;
+        if (selecting) onToggleSelect(design);
+        else if (link) onOpen(link);
+      }}
       sx={{
         position: "relative",
-        background: "#FFFFFF",
-        border: "1px solid rgba(176,141,53,0.15)",
+        background: "var(--nc-paper)",
+        border: selected ? "2px solid #B08D35" : "1px solid rgba(176,141,53,0.15)",
+        boxShadow: selected ? "0 0 0 3px rgba(176,141,53,0.18)" : "none",
         borderRadius: 3,
         overflow: "hidden",
-        cursor: link ? "pointer" : "default",
-        opacity: deleting ? 0.5 : link ? 1 : 0.7,
+        cursor: link || selecting ? "pointer" : "default",
+        opacity: deleting ? 0.5 : link || selecting ? 1 : 0.7,
         transition: "transform 0.2s ease, box-shadow 0.2s ease",
-        "&:hover": link ? { transform: "translateY(-4px)", boxShadow: "0 8px 20px rgba(176,141,53,0.15)" } : {},
+        "&:hover": link || selecting ? { transform: "translateY(-4px)", boxShadow: "0 8px 20px rgba(176,141,53,0.15)" } : {},
       }}
     >
+      {onToggleSelect && (
+        <Checkbox
+          size="small"
+          checked={selected}
+          disabled={deleting}
+          onClick={(e) => e.stopPropagation()}
+          onChange={() => onToggleSelect(design)}
+          slotProps={{ input: { "aria-label": `Select ${title}` } }}
+          sx={{
+            position: "absolute",
+            top: 6,
+            left: 6,
+            zIndex: 1,
+            p: 0.5,
+            background: "rgba(255,255,255,0.9)",
+            borderRadius: 1,
+            "&:hover": { background: "var(--nc-paper)" },
+          }}
+        />
+      )}
       {onDelete && (
         <Tooltip title="Delete project">
           <span style={{ position: "absolute", top: 8, right: 8, zIndex: 1 }}>
@@ -70,7 +98,7 @@ const DesignCard = ({ design, onOpen, onDelete, deleting = false }) => {
                 e.stopPropagation();
                 onDelete(design, title);
               }}
-              sx={{ background: "rgba(255,255,255,0.9)", "&:hover": { background: "#fff", color: "#c62828" } }}
+              sx={{ background: "rgba(255,255,255,0.9)", "&:hover": { background: "var(--nc-paper)", color: "#c62828" } }}
             >
               <DeleteOutlinedIcon fontSize="small" />
             </IconButton>
@@ -82,18 +110,18 @@ const DesignCard = ({ design, onOpen, onDelete, deleting = false }) => {
           component="img"
           src={preview}
           alt={title}
-          sx={{ width: "100%", height: 180, objectFit: "contain", display: "block", background: "#F3EEE2" }}
+          sx={{ width: "100%", height: 180, objectFit: "contain", display: "block", background: "var(--nc-surface-2)" }}
         />
       ) : (
-        <Box sx={{ height: 180, display: "flex", alignItems: "center", justifyContent: "center", background: "#EEE9DD", color: "#A9A296" }}>
+        <Box sx={{ height: 180, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--nc-surface-2)", color: "#A9A296" }}>
           <Typography variant="body2">No preview</Typography>
         </Box>
       )}
       <Box sx={{ p: 1.5 }}>
-        <Typography variant="body2" sx={{ color: "#2A2620", fontWeight: 600 }} noWrap title={title}>
+        <Typography variant="body2" sx={{ color: "var(--nc-text)", fontWeight: 600 }} noWrap title={title}>
           {title}
         </Typography>
-        <Typography variant="caption" sx={{ color: "#7A7266", display: "block" }} noWrap title={subtitle}>
+        <Typography variant="caption" sx={{ color: "var(--nc-text-2)", display: "block" }} noWrap title={subtitle}>
           {subtitle}
         </Typography>
         <Typography variant="caption" sx={{ color: "#A9A296", display: "block", mb: 1 }}>
@@ -104,7 +132,7 @@ const DesignCard = ({ design, onOpen, onDelete, deleting = false }) => {
           size="small"
           sx={{
             background: saved ? "rgba(56,142,60,0.12)" : "rgba(176,141,53,0.12)",
-            color: saved ? "#2e7d32" : "#8a6d1f",
+            color: saved ? "#2e7d32" : "var(--nc-gold-text)",
             fontWeight: 600,
           }}
         />

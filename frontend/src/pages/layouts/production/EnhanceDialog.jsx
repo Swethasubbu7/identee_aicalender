@@ -24,11 +24,11 @@ const Crop = ({ url, label, sub }) => (
       sx={{
         height: 260,
         borderRadius: 2,
-        border: "1px solid #e5e5e5",
+        border: "1px solid var(--nc-border-neutral)",
         backgroundImage: url ? `url(${url})` : "none",
         backgroundSize: "400%",
         backgroundPosition: "50% 30%",
-        backgroundColor: "#f4f4f4",
+        backgroundColor: "var(--nc-surface-2)",
       }}
     />
     <Typography variant="body2" sx={{ fontWeight: 700, mt: 1 }}>{label}</Typography>
@@ -37,7 +37,7 @@ const Crop = ({ url, label, sub }) => (
 );
 
 const Option = ({ icon, title, text, action, busy, disabled, primary, onClick }) => (
-  <Box sx={{ flex: "1 1 240px", border: `1px solid ${primary ? "#d9c7fb" : "#e5e5e5"}`, borderRadius: 2.5, p: 2, display: "flex", flexDirection: "column", gap: 1 }}>
+  <Box sx={{ flex: "1 1 240px", border: `1px solid ${primary ? "#d9c7fb" : "var(--nc-border-neutral)"}`, borderRadius: 2.5, p: 2, display: "flex", flexDirection: "column", gap: 1 }}>
     <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: primary ? ACCENT : "text.primary" }}>
       {icon}
       <Typography sx={{ fontWeight: 700 }}>{title}</Typography>
@@ -155,7 +155,7 @@ const EnhanceDialog = ({ open, variantId, onClose, onApproved }) => {
                 <Option
                   icon={<PhotoSizeSelectLargeIcon />}
                   title="Smooth enlarge"
-                  text={`Free, preview only: smoother on screen but no new detail (real detail stays ${p.smooth.detailDpi} DPI) — it does not fix the print-quality error.`}
+                  text={`Free: enlarges the artwork to print size (${p.target.dpi} DPI) and sharpens it gently. Fine detail stays as in the original (${p.smooth.detailDpi} DPI) — check a printed proof.`}
                   action="Make preview"
                   busy={busy === "smooth"}
                   disabled={Boolean(busy)}

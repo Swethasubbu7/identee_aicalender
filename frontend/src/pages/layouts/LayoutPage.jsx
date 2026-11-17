@@ -16,7 +16,6 @@ import AddIcon from "@mui/icons-material/Add";
 import AppSidebar from "../../components/AppSidebar";
 import LayoutCard from "./LayoutCard";
 import LayoutPreviewModal from "./LayoutPreviewModal";
-import UploadLayoutModal from "./UploadLayoutModal";
 import ProductionLayoutCard from "./production/ProductionLayoutCard";
 import ProductionLayoutDialog from "./production/ProductionLayoutDialog";
 import { listLayoutVariants, deleteLayoutVariant } from "../../services/layoutVariantService";
@@ -49,7 +48,6 @@ const LayoutPage = () => {
   const [selectedLayoutId, setSelectedLayoutId] = useState(
     localStorage.getItem(SELECTED_LAYOUT_STORAGE_KEY) || null,
   );
-  const [uploadOpen, setUploadOpen] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [previewLayout, setPreviewLayout] = useState(null);
   const [snackbar, setSnackbar] = useState({
@@ -170,16 +168,6 @@ const LayoutPage = () => {
     }
   };
 
-  const handleUploadSuccess = () => {
-    setUploadOpen(false);
-    setSnackbar({
-      open: true,
-      message: "Layout uploaded successfully",
-      severity: "success",
-    });
-    fetchLayouts();
-  };
-
   // Deleting a layout only soft-deletes it (isActive: false) on the backend,
   // so it simply drops out of the (isActive-filtered) list on refetch.
   const handleDeactivate = async (layout) => {
@@ -219,7 +207,7 @@ const LayoutPage = () => {
     <Box
       sx={{ display: "flex", minHeight: "100vh", background: colors.pageBg }}
     >
-      <AppSidebar activeKey="layouts" />
+      <AppSidebar />
 
       <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column" }}>
         <Box sx={{ flexGrow: 1, p: 4, pb: 12 }}>
@@ -265,14 +253,6 @@ const LayoutPage = () => {
                 }}
               >
                 Add Production Layout
-              </Button>
-              <Button
-                variant="outlined"
-                startIcon={<AddIcon />}
-                onClick={() => setUploadOpen(true)}
-                sx={{ borderRadius: `${radii.md}px` }}
-              >
-                Upload Preview Layout
               </Button>
               <TopBar />
             </Box>
@@ -470,12 +450,6 @@ const LayoutPage = () => {
         onChanged={fetchVariants}
       />
       )}
-
-      <UploadLayoutModal
-        open={uploadOpen}
-        onClose={() => setUploadOpen(false)}
-        onSuccess={handleUploadSuccess}
-      />
 
       <LayoutPreviewModal
         layout={previewLayout}

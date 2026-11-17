@@ -60,7 +60,7 @@ const CorrectionPanel = ({ variant, onChanged }) => {
       <Typography variant="overline">Cutline size</Typography>
       {error && <Alert severity="error" sx={{ mb: 1 }}>{error}</Alert>}
       <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start", flexWrap: "wrap" }}>
-        <svg viewBox={view} style={{ width: 150, height: 220, background: "#faf8f2", flexShrink: 0 }}>
+        <svg viewBox={view} style={{ width: 150, height: 220, background: "var(--nc-surface-2)", flexShrink: 0 }}>
           <rect x={0} y={0} width={p.targetTrim.widthMm} height={p.targetTrim.heightMm} fill="none" stroke="#1e88e5" strokeWidth={0.6} strokeDasharray="3 2" />
           {data.sourceCutline && <path d={data.sourceCutline} fill="none" stroke="#757575" strokeWidth={1} strokeDasharray="4 3" />}
           {data.correctedCutline && <path d={data.correctedCutline} fill="none" stroke="#e53935" strokeWidth={0.8} />}

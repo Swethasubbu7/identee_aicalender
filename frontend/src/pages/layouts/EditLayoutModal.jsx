@@ -139,7 +139,7 @@ const EditLayoutModal = ({ layout, open, onClose, onSuccess }) => {
         <Box>
           <Typography
             variant="caption"
-            sx={{ color: "#7A7266", display: "block", mb: 0.5 }}
+            sx={{ color: "var(--nc-text-2)", display: "block", mb: 0.5 }}
           >
             Replace Preview Image (optional)
           </Typography>
@@ -162,7 +162,7 @@ const EditLayoutModal = ({ layout, open, onClose, onSuccess }) => {
         <Box>
           <Typography
             variant="caption"
-            sx={{ color: "#7A7266", display: "block", mb: 0.5 }}
+            sx={{ color: "var(--nc-text-2)", display: "block", mb: 0.5 }}
           >
             Replace Layout File (optional)
           </Typography>

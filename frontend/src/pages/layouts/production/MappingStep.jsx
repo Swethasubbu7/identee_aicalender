@@ -550,9 +550,9 @@ const MappingStep = ({ variant, onSaved }) => {
           Click an object to select it, Shift+click to add more. Overlapping objects are listed on the right.
           {offPageObjects.length > 0 && " Grey outlines = objects drawn outside the PDF page (e.g. the cutline beside the artwork)."}
         </Typography>
-        <Box ref={scrollRef} sx={{ flexGrow: 1, overflow: "auto", background: "#e9e5dc", borderRadius: 1, p: 1.5 }}>
+        <Box ref={scrollRef} sx={{ flexGrow: 1, overflow: "auto", background: "var(--nc-well)", borderRadius: 1, p: 1.5 }}>
           {page && (
-            <Box sx={{ position: "relative", width: bounds.width * pxPerMm, height: bounds.height * pxPerMm, background: "#f6f3ec" }}>
+            <Box sx={{ position: "relative", width: bounds.width * pxPerMm, height: bounds.height * pxPerMm, background: "var(--nc-surface-2)" }}>
               <canvas
                 ref={canvasRef}
                 style={{
@@ -561,7 +561,7 @@ const MappingStep = ({ variant, onSaved }) => {
                   top: -bounds.y * pxPerMm,
                   width: page.widthMm * pxPerMm,
                   height: page.heightMm * pxPerMm,
-                  background: "#fff",
+                  background: "var(--nc-paper)",
                   boxShadow: "0 0 0 1px rgba(0,0,0,0.15)",
                 }}
               />
@@ -939,7 +939,7 @@ const MappingStep = ({ variant, onSaved }) => {
           </>
         )}
 
-        <Box sx={{ position: "sticky", bottom: 0, background: "#fff", pt: 1.5, pb: 0.5 }}>
+        <Box sx={{ position: "sticky", bottom: 0, background: "var(--nc-paper)", pt: 1.5, pb: 0.5 }}>
           {locked ? (
             <Box sx={{ display: "flex", gap: 1 }}>
               <Button variant="outlined" onClick={unlock} sx={{ flex: 1 }}>

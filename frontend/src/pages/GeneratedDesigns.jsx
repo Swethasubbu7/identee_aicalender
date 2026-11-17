@@ -27,19 +27,19 @@ const GeneratedDesigns = () => {
   }, []);
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", background: "#FAF6EC" }}>
-      <AppSidebar activeKey="generated" />
+    <Box sx={{ display: "flex", minHeight: "100vh", background: "var(--nc-bg)" }}>
+      <AppSidebar />
       <Box sx={{ flexGrow: 1, p: { xs: 2, md: 4 } }}>
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 2, mb: 3, flexWrap: "wrap" }}>
           <Box>
-            <Typography variant="h5" sx={{ color: "#2A2620", fontWeight: 700 }}>
+            <Typography variant="h5" sx={{ color: "var(--nc-text)", fontWeight: 700 }}>
               Generated Designs
             </Typography>
-            <Typography variant="body2" sx={{ color: "#7A7266", mt: 0.5 }}>
+            <Typography variant="body2" sx={{ color: "var(--nc-text-2)", mt: 0.5 }}>
               Calendar designs from the whole team. Open one to preview, run the print check and download the PDFs.
             </Typography>
           </Box>
-          <Button variant="contained" startIcon={<AddCircleOutlineIcon />} onClick={() => navigate("/layouts")}>
+          <Button variant="contained" startIcon={<AddCircleOutlineIcon />} onClick={() => navigate("/layouts?new=1")}>
             Create New Project
           </Button>
         </Box>

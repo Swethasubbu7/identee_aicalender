@@ -24,7 +24,7 @@ const CanvasToolbar = ({
         display: "flex",
         alignItems: "center",
         gap: 0.5,
-        background: "#FFFFFF",
+        background: "var(--nc-paper)",
         border: "1px solid rgba(176,141,53,0.15)",
         borderRadius: 2,
         px: 1,
@@ -57,7 +57,7 @@ const CanvasToolbar = ({
       </Tooltip>
       <Typography
         variant="caption"
-        sx={{ minWidth: 40, textAlign: "center", color: "#2A2620" }}
+        sx={{ minWidth: 40, textAlign: "center", color: "var(--nc-text)" }}
       >
         {zoomPercent}%
       </Typography>

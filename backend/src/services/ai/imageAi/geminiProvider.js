@@ -7,60 +7,122 @@ const config = require("../../../config");
 const isConfigured = () =>
   config.AI_IMAGE_PROVIDER === "gemini" && config.hasRealApiKey(process.env.GEMINI_API_KEY);
 
+// HTTP options for every request:
+//  - retryOptions.attempts = 1: the SDK sends each request exactly ONCE. It
+//    retries 408/429/5xx up to 5 times when retry options are set, and every
+//    retry of an image request may be billed (business rule: no automatic
+//    retries). Set explicitly so a future SDK default cannot change it.
+//  - timeout: the HTTP request itself is aborted at the app's limit (the
+//    race in withTimeout() below stays as a backstop).
+const httpOptions = () => ({ retryOptions: { attempts: 1 }, timeout: config.AI_REQUEST_TIMEOUT_MS });
+
 let client = null;
 const getClient = () => {
   if (!client) {
     const { GoogleGenAI } = require("@google/genai");
-    client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY, httpOptions: httpOptions() });
   }
   return client;
 };
 
-// `message` is safe to show to the designer; provider details are only logged.
+// `message` is safe to show to the designer. `httpStatus` and `detail` (the
+// provider's own error text, with anything key-like removed) are kept for
+// the usage ledger and logs so a failure can be diagnosed afterwards.
 class AiProviderError extends Error {
-  constructor(message, { cause, retryable = false, kind = "FAILED", usage = null } = {}) {
+  constructor(message, { cause, retryable = false, kind = "FAILED", usage = null, httpStatus = null, detail = null, sent = true } = {}) {
     super(message);
     this.code = "AI_PROVIDER_ERROR";
     this.kind = kind;
     this.retryable = retryable; // informational only: nothing retries automatically
     this.cause = cause;
     this.usage = usage; // provider usage, when a reply arrived (it may be billed)
+    this.httpStatus = httpStatus;
+    this.detail = detail;
+    // false only when the request certainly never reached the provider
+    // (e.g. the address could not be looked up): nothing can be billed.
+    this.sent = sent;
   }
 }
 
+// Provider text without anything that looks like a key or token.
+const safeDetail = (text) =>
+  String(text || "")
+    .replace(/AIza[\w-]{10,}|AQ\.[\w.-]{10,}|ya29\.[\w.-]+|key=[\w.-]+|Bearer\s+[\w.-]+/g, "[redacted]")
+    .slice(0, 500) || null;
+
+// Network failures. Lookup / refused errors happen before anything is sent;
+// any other network error may have happened after Google received it.
+const NETWORK_NOT_SENT = /ENOTFOUND|EAI_AGAIN|ECONNREFUSED|getaddrinfo/i;
+const NETWORK_ANY = /fetch failed|ECONNRESET|ETIMEDOUT|EPIPE|socket hang up|network|UND_ERR|other side closed/i;
+const errorText = (error) =>
+  [error?.message, error?.cause?.message, error?.cause?.code, error?.code].filter(Boolean).join(" | ");
+
 const describe = (error) => {
   const text = String(error?.message || "");
+  const detail = safeDetail(errorText(error));
   // The SDK does not always set a numeric status; the API body carries "code".
   const status = Number(error?.status) || Number(/"code":\s*(\d{3})/.exec(text)?.[1]) || 0;
+  const make = (message, opts) => new AiProviderError(message, { cause: error, httpStatus: status || null, detail, ...opts });
+  if (!status && error?.name === "AbortError") {
+    return make("The AI service is very busy and took too long to answer. Please press Try again in a few minutes.", { kind: "TIMEOUT" });
+  }
+  if (!status && NETWORK_NOT_SENT.test(errorText(error))) {
+    return make("The AI service could not be reached (network problem). Nothing was sent — check the internet connection and try again.", {
+      kind: "NETWORK",
+      sent: false,
+    });
+  }
+  if (!status && NETWORK_ANY.test(errorText(error))) {
+    return make("The connection to the AI service was lost. Please check the internet connection and try again.", { kind: "NETWORK" });
+  }
+  const result = describeStatus(status, text);
+  result.cause = error;
+  result.httpStatus = status || null;
+  result.detail = detail;
+  return result;
+};
+
+const describeStatus = (status, text) => {
   if (status === 429 && /free_tier|limit: 0/i.test(text)) {
     return new AiProviderError(
       "The Gemini API key is on the free plan, which has no image-generation quota. Turn on billing for this key in Google AI Studio.",
-      { cause: error, kind: "QUOTA" },
+      { kind: "QUOTA" },
     );
   }
   if (status === 402 || /prepayment credits are depleted/i.test(text)) {
     return new AiProviderError(
       "The AI credit is used up. Add credit in Google AI Studio (Billing), then press Try again.",
-      { cause: error, kind: "QUOTA" },
+      { kind: "QUOTA" },
     );
   }
   if (status === 429) {
     return new AiProviderError("The AI service is busy or the usage limit was reached. Please try again in a minute.", {
-      cause: error,
       retryable: true,
       kind: "RATE_LIMIT",
     });
   }
   if (status === 400 && /api key/i.test(text)) {
-    return new AiProviderError("The AI API key is invalid.", { cause: error, kind: "AUTH" });
+    return new AiProviderError("The AI API key is invalid.", { kind: "AUTH" });
   }
   if (status === 401 || status === 403) {
-    return new AiProviderError("The AI API key is not allowed to use this model.", { cause: error, kind: "AUTH" });
+    return new AiProviderError("The AI API key is not allowed to use this model.", { kind: "AUTH" });
+  }
+  if ([502, 503, 504].includes(status)) {
+    return new AiProviderError("Google's AI service is overloaded or unavailable right now. Please try again in a few minutes.", {
+      retryable: true,
+      kind: "UNAVAILABLE",
+    });
   }
   if (status >= 500) {
-    return new AiProviderError("The AI service had a temporary problem.", { cause: error, retryable: true });
+    return new AiProviderError("Google's AI service had an internal error with this request. Please try again in a few minutes.", {
+      retryable: true,
+      kind: "SERVER_ERROR",
+    });
   }
-  return new AiProviderError("The AI service could not complete the request.", { cause: error });
+  if (status === 400) {
+    return new AiProviderError("The AI service rejected the request.", { kind: "BAD_REQUEST" });
+  }
+  return new AiProviderError("The AI service could not complete the request.", {});
 };
 
 const withTimeout = (promise, ms) => {
@@ -105,7 +167,7 @@ const call = async (request) => {
   } catch (error) {
     const err = error instanceof AiProviderError ? error : describe(error);
     // Provider messages can contain request details: log them, never return them.
-    console.error(`Gemini ${request.model} failed (${err.kind}):`, String(error?.message || error).slice(0, 300));
+    console.error(`Gemini ${request.model} failed (${err.kind}${err.httpStatus ? `, HTTP ${err.httpStatus}` : ""}):`, err.detail || safeDetail(errorText(error)));
     throw err;
   }
 };

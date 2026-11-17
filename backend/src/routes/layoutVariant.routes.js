@@ -6,8 +6,10 @@ const {
   validateVariant,
   activateVariant,
   archiveVariant,
+  downloadVariantFile,
 } = require("../controllers/layoutVariant.controller");
 const {
+  detectLayoutFormat,
   importProductionPdf,
   uploadLaserPdf,
   getCorrection,
@@ -73,6 +75,8 @@ const assetUpload = withUpload(
 router.get("/", verifyToken, listVariants);
 
 // Production layout workflow (Layouts page → Add Production Layout).
+// Size + cut type from the laser PDF (nothing stored), before the import.
+router.post("/detect", ...signedIn, laserUpload, detectLayoutFormat);
 router.post("/import", ...signedIn, pdfUpload, importProductionPdf);
 router.post("/:id/laser", ...signedIn, laserUpload, uploadLaserPdf);
 router.get("/:id/correction", ...signedIn, getCorrection);
@@ -91,6 +95,7 @@ router.post("/:id/assets", ...signedIn, assetUpload, uploadVariantAssets);
 router.post("/:id/deactivate", ...signedIn, deactivateVariant);
 router.post("/:id/reextract", ...signedIn, reextractVariant);
 
+router.get("/:id/download/:kind", verifyToken, downloadVariantFile);
 router.get("/:id", verifyToken, getVariant);
 router.put("/:id", ...signedIn, updateVariant);
 router.post("/:id/validate", ...signedIn, validateVariant);

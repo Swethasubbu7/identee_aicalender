@@ -45,6 +45,8 @@ const disabledSections = (variant, options = {}) => sectionsOf(variant).filter((
 const hasContent = (region, options = {}, content = {}, { aiPaintsProduct = false } = {}) => {
   const binding = region.binding;
   if (!binding) return true;
+  // Left box as a picture: shown when a picture was given.
+  if (region.role === "SIDE_BOX_LEFT" && options.leftBoxMode === "image") return Boolean(content.leftBoxImage);
   if (region.role === "SIDE_BOX_RIGHT" || binding === "productImage") {
     if (options.rightBoxMode === "text") return Boolean(String(content.rightBoxText || "").trim());
     return Boolean(content.productImage) || aiPaintsProduct;

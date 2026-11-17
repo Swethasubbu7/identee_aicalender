@@ -188,7 +188,9 @@ test("AI prompt: free deity composition inside the cutline, text panels kept pla
   const p = specialArtworkPrompt({ theme: null, prompt: "royal maroon, lotus", hasTemplateReference: true, cakeOverlapsArtwork: true });
   assert.match(p, /does not have to sit in a circle, oval or rectangle/);
   assert.match(p, /pure white = OUTSIDE the die-cut shape/);
-  assert.match(p, /cream areas = panels/);
+  assert.match(p, /cream areas = where the app later prints/);
+  assert.match(p, /ornamental plaque or banner/);
+  assert.match(p, /never plain white or empty strips/);
   // The cake rule follows the layout (separate cake space or artwork under the pad).
   assert.match(p, /blue box = where the printed calendar pad is attached/);
   assert.match(p, /no part of the deity/);
@@ -261,7 +263,12 @@ const loadRunner = () => {
   const imageAi = require(path.join(SRC, "services/ai/imageAi"));
 
   const usage = [];
-  AiUsageRecord.create = async (r) => usage.push(r);
+  AiUsageRecord.create = async (r) => usage.push({ ...r });
+  AiUsageRecord.updateOne = async (q, upd) => {
+    const r = usage.find((x) => x.requestId === q.requestId);
+    if (r) Object.assign(r, upd.$set);
+    return { modifiedCount: r ? 1 : 0 };
+  };
   AiUsageRecord.find = () => ({ lean: async () => usage, sort: () => ({ limit: () => ({ lean: async () => [] }) }) });
   AiUsageRecord.aggregate = async () => [];
   AiUsageRecord.countDocuments = async () => usage.filter((r) => r.needsReconciliation).length;
@@ -277,6 +284,12 @@ const loadRunner = () => {
   AiCalendarJob.updateOne = async (_q, upd) => {
     for (const [k, v] of Object.entries(upd.$set || {})) setPath(state.job, k, v);
     for (const [k, v] of Object.entries(upd.$inc || {})) setPath(state.job, k, (state.job[k] || 0) + v);
+  };
+  // Atomic claim of a QUEUED job.
+  AiCalendarJob.findOneAndUpdate = async (q, upd) => {
+    if (!state.job || (q.status && state.job.status !== q.status)) return null;
+    for (const [k, v] of Object.entries(upd.$set || {})) setPath(state.job, k, v);
+    return JSON.parse(JSON.stringify(state.job));
   };
   const variant = specialVariant();
   LayoutVariant.find = () => ({ populate: async () => [variant] });
@@ -423,7 +436,7 @@ test("mock AI: 2 Special designs = 2 requests with 2 different compositions; nam
   assert.equal(new Set(briefs).size, 2, "two distinct compositions");
   assert.ok(ctx.calls.some((c) => /deity large and majestic/.test(c.prompt))); // prominent deity
   assert.ok(ctx.calls.every((c) => /left some text \/ content sections out/.test(c.prompt) && /Never draw empty boxes/.test(c.prompt)), "freed name space is painted");
-  assert.ok(ctx.calls.every((c) => /Silk sarees/.test(c.prompt) && /never as words/.test(c.prompt)));
+  assert.ok(ctx.calls.every((c) => /Silk sarees/.test(c.prompt) && /never any words/.test(c.prompt) && /no products, fabrics or cloth in the decoration/.test(c.prompt) && !/draped fabrics/.test(c.prompt)));
   assert.ok(ctx.calls.every((c) => /do not copy or recolour the template/.test(c.prompt)));
   assert.deepEqual(ctx.state.job.variations.map((v) => v.compositionStyle), ["Grand deity", "Floral garden"]);
   assert.equal(ctx.usage.length, 2);
@@ -610,7 +623,7 @@ test("mock AI: switches on but content empty = complete artwork, no panels for t
   assert.equal(ctx.calls.length, 2);
   for (const c of ctx.calls) {
     assert.match(c.prompt, /rectangular printed/);
-    assert.match(c.prompt, /cream areas = panels/); // the name is printed
+    assert.match(c.prompt, /cream areas = where the app later prints/); // the name is printed
     assert.match(c.prompt, /left some text \/ content sections out/);
     // The guide shows ONE cream panel (the name), not the empty boxes.
     const { data, info } = await sharp(c.images[1].buffer).raw().toBuffer({ resolveWithObject: true });
@@ -657,4 +670,17 @@ test("AI reference: removed sections are cut out of the layout picture", async (
   }
   // No plate layers + removed sections: no template at all (never the boxes).
   assert.equal(await buildTemplateReference({ ...v, assets: { original: "/uploads/test-special-tmp/plate.png" } }, { showLeftBox: false }), null);
+});
+
+test("mock AI: a job queued twice is claimed once — never two paid runs", async () => {
+  const ctx = loadRunner();
+  ctx.state.job = await newJob(ctx.variant, 1);
+  const png = await artworkPng();
+  ctx.provider.behaviour = async () => ({ images: [{ buffer: png, mimeType: "image/png" }], usage: USAGE });
+  ctx.runner.enqueueJob(ctx.state.job._id); // e.g. a duplicate enqueue
+  await quiet(() => runJob(ctx));
+  await new Promise((r) => setTimeout(r, 100));
+  assert.equal(ctx.calls.length, 1);
+  assert.equal(ctx.usage.length, 1);
+  assert.equal(ctx.state.job.status, "DONE");
 });

@@ -11,26 +11,47 @@ import { drawBoxStyle } from "./sideBoxStyles";
 import { iconForProducts } from "./productIcons";
 import { sectionAreas, sectionOf } from "./sectionAreas";
 import { drawSketchBackground, drawSketchGod, sketchGodArea } from "./specialSketch";
+import { fontPairForStyle, requestGoogleFont } from "./fontSets";
+import { textScaleFor } from "./textSizes";
 
 export const MM_PER_PT = 25.4 / 72;
 
 // "Cambria-Bold" → { family: "Cambria", weight: 700 }; "CenturyGothic-Bold"
 // → "Century Gothic"; "Cinzel-Black" → weight 900.
+// "ArialRoundedMTBold" (no hyphen) → "Arial Rounded", 700.
+// Fonts the browser may not have get a close free substitute (fallback,
+// from Google Fonts) instead of falling back to Times.
+const STYLE_WORDS = /(SemiBold|DemiBold|ExtraBold|Bold|Black|Heavy|Light|Regular|Italic|Oblique)+$/;
+const SUBSTITUTES = [
+  [/rounded/i, "Nunito", "sans-serif"],
+  [/century gothic|futura|avant|gotham|geometric/i, "Josefin Sans", "sans-serif"],
+  [/times|cambria|georgia|garamond|book antiqua|palatino|baskerville|minion|bodoni|serif/i, "Lora", "serif"],
+  [/impact|bebas|anton|haettenschweiler/i, "Anton", "sans-serif"],
+  [/script|brush|hand|calligraph/i, "Dancing Script", "cursive"],
+];
 export const cssFontFromPdf = (pdfName) => {
-  if (!pdfName) return { family: "serif", weight: 400, style: "normal" };
-  const [base, suffix = ""] = pdfName.replace(/^[A-Z]{6}\+/, "").split("-");
+  if (!pdfName) return { family: "Lora", weight: 400, style: "normal", generic: "serif" };
+  let [base, suffix = ""] = pdfName.replace(/^[A-Z]{6}\+/, "").split("-");
+  if (!suffix) {
+    const m = STYLE_WORDS.exec(base.replace(/(PSMT|MT|PS)$/, ""));
+    if (m && m.index > 0) {
+      suffix = m[0];
+      base = base.slice(0, m.index);
+    }
+  }
   const family = base
     .replace(/(PSMT|MT|PS)$/, "")
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     .trim();
   const s = suffix.toLowerCase();
-  const weight = /black|heavy/.test(s) ? 900 : /semibold|demibold/.test(s) ? 600 : /bold/.test(s) ? 700 : /light/.test(s) ? 300 : 400;
+  const weight = /black|heavy/.test(s) ? 900 : /extrabold/.test(s) ? 800 : /semibold|demibold/.test(s) ? 600 : /bold/.test(s) ? 700 : /light/.test(s) ? 300 : 400;
   const style = /italic|oblique/.test(s) ? "italic" : "normal";
-  return { family, weight, style };
+  const sub = SUBSTITUTES.find(([re]) => re.test(family));
+  return { family, weight, style, fallback: sub ? sub[1] : "Poppins", generic: sub ? sub[2] : "sans-serif" };
 };
 
 const fontString = (font, sizeMm) =>
-  `${font.style} ${font.weight} ${sizeMm}px "${font.family}", "Times New Roman", serif`;
+  `${font.style} ${font.weight} ${sizeMm}px "${font.family}"${font.fallback ? `, "${font.fallback}"` : ""}, ${font.generic || "serif"}`;
 
 // Make sure the fonts used by the layout's text regions are loaded before drawing.
 export const loadLayoutFonts = async (variant) => {
@@ -39,7 +60,14 @@ export const loadLayoutFonts = async (variant) => {
     .map((r) => r.textStyle?.fontFamily)
     .filter(Boolean)
     .map(cssFontFromPdf);
-  await Promise.all(fonts.map((f) => document.fonts.load(fontString(f, 20)).catch(() => null)));
+  // The substitutes come from Google Fonts (added on demand).
+  for (const f of fonts) if (f.fallback) requestGoogleFont({ family: f.fallback, weight: Math.min(f.weight, 800), style: f.style });
+  await Promise.all(
+    fonts.flatMap((f) => [
+      document.fonts.load(fontString(f, 20)).catch(() => null),
+      f.fallback ? document.fonts.load(`${f.style} ${Math.min(f.weight, 800)} 20px "${f.fallback}"`).catch(() => null) : null,
+    ]),
+  );
 };
 
 // JPEG has no transparency: outside the cutline must be white, not black.
@@ -94,6 +122,68 @@ const drawCover = (ctx, img, box) => {
   ctx.drawImage(img, box.x + (box.width - w) / 2, box.y + (box.height - h) / 2, w, h);
 };
 
+// The God image's rectangle in its area: "cover" (fills the God opening) or
+// "contain" (whole picture), then the designer's size and position
+// (placement = { dx, dy, scale }: offset as a share of the area, size ×).
+// The picture is never stretched: its proportions stay as uploaded.
+export const GOD_SCALE_MIN = 0.3;
+export const GOD_SCALE_MAX = 3;
+export const placedRect = (img, area, placement, fit = "cover", anchor = "centre") => {
+  const iw = img?.naturalWidth || img?.width || 1;
+  const ih = img?.naturalHeight || img?.height || 1;
+  const base = fit === "contain" ? Math.min(area.width / iw, area.height / ih) : Math.max(area.width / iw, area.height / ih);
+  const scale = Math.min(GOD_SCALE_MAX, Math.max(GOD_SCALE_MIN, Number(placement?.scale) || 1));
+  const w = iw * base * scale;
+  const h = ih * base * scale;
+  const dx = (Number(placement?.dx) || 0) * area.width;
+  const dy = (Number(placement?.dy) || 0) * area.height;
+  // "top": the top of the picture (crown) starts at the top of the area.
+  const y = anchor === "top" ? area.y + dy : area.y + (area.height - h) / 2 + dy;
+  return { x: area.x + (area.width - w) / 2 + dx, y, width: w, height: h };
+};
+
+// Draws a picture with softly faded edges (bottom most, sides a little), so
+// it merges into the artwork around it instead of looking pasted on.
+// Only the part inside `area` is drawn; the fades are at the edges of what
+// is visible.
+const drawFeathered = (ctx, img, r, area, pxPerMm) => {
+  const x0 = Math.max(r.x, area.x);
+  const y0 = Math.max(r.y, area.y);
+  const x1 = Math.min(r.x + r.width, area.x + area.width);
+  const y1 = Math.min(r.y + r.height, area.y + area.height);
+  if (x1 <= x0 || y1 <= y0) return;
+  const vis = { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
+  const iw = img.naturalWidth || img.width;
+  const ih = img.naturalHeight || img.height;
+  const sx = ((vis.x - r.x) / r.width) * iw;
+  const sy = ((vis.y - r.y) / r.height) * ih;
+  const sw = (vis.width / r.width) * iw;
+  const sh = (vis.height / r.height) * ih;
+  const w = Math.max(1, Math.round(vis.width * pxPerMm));
+  const h = Math.max(1, Math.round(vis.height * pxPerMm));
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  const g = c.getContext("2d");
+  g.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
+  g.globalCompositeOperation = "destination-in";
+  const v = g.createLinearGradient(0, 0, 0, h);
+  v.addColorStop(0, "rgba(0,0,0,0.85)");
+  v.addColorStop(0.04, "rgba(0,0,0,1)");
+  v.addColorStop(0.74, "rgba(0,0,0,1)");
+  v.addColorStop(1, "rgba(0,0,0,0)");
+  g.fillStyle = v;
+  g.fillRect(0, 0, w, h);
+  const hz = g.createLinearGradient(0, 0, w, 0);
+  hz.addColorStop(0, "rgba(0,0,0,0)");
+  hz.addColorStop(0.07, "rgba(0,0,0,1)");
+  hz.addColorStop(0.93, "rgba(0,0,0,1)");
+  hz.addColorStop(1, "rgba(0,0,0,0)");
+  g.fillStyle = hz;
+  g.fillRect(0, 0, w, h);
+  ctx.drawImage(c, vis.x, vis.y, vis.width, vis.height);
+};
+
 // Text area inside a region: a container box keeps the smallest gap the
 // sample text left to any of the box edges (taken from the source artwork);
 // a pure text region uses its box.
@@ -122,11 +212,14 @@ const hexLuminance = (hex) => {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 };
 
-const drawRegionText = (ctx, region, text, { alpha = 1, font: fontOverride = null, color = null, wrap = false, outline = false } = {}) => {
+const drawRegionText = (ctx, region, text, { alpha = 1, font: fontOverride = null, color = null, wrap = false, outline = false, scale = 1, fill = false, twoLines = false, targetMm = null } = {}) => {
   const style = region.textStyle || {};
   const font = fontOverride ? { style: "normal", ...fontOverride } : cssFontFromPdf(style.fontFamily);
   const hs = style.horizontalScale || 1;
-  const area = textArea(region);
+  // Lettering drawn as shapes fills its area edge to edge; new text gets a
+  // little breathing room so it never touches the band / box edges.
+  const full = textArea(region);
+  const area = region.textBox ? full : { x: full.x + full.width * 0.04, y: full.y + full.height * 0.08, width: full.width * 0.92, height: full.height * 0.84 };
   const sourceLines = String(text)
     .split("\n")
     .map((l) => (style.textCase === "upper" ? l.toUpperCase() : l).trimEnd())
@@ -156,11 +249,23 @@ const drawRegionText = (ctx, region, text, { alpha = 1, font: fontOverride = nul
 
   // Text converted to curves has no size in the file: size it to its area.
   const layoutPt = style.maxPt || style.minPt || area.height / MM_PER_PT;
-  let sizeMm = layoutPt * MM_PER_PT;
+  // The designer's size % (Customise → Text style) scales the automatic size;
+  // the text still never grows out of its area.
+  const layoutMm = layoutPt * MM_PER_PT;
+  // fill: a single line may grow into free height in its area (up to 30 %
+  // above the layout's own size), so names and text lines read clearly.
+  // Box text (several lines) may also grow up to 30 % when it has room;
+  // the fitting below shrinks it again if it does not fit.
+  const startMm = !fill
+    ? layoutMm
+    : sourceLines.length === 1 && !wrap
+      ? Math.max(layoutMm, Math.min(area.height * 0.8, layoutMm * 1.3))
+      : layoutMm * 1.3;
+  let sizeMm = startMm * scale;
   // Line spacing as in the sample text, if it had several lines.
   const sampleLines = new Set((region.sampleText || "").split("\n").map((l) => l.trim())).size;
   const lineRatio =
-    region.textBox && sampleLines > 1 ? region.textBox.height / sampleLines / sizeMm : 1.2;
+    region.textBox && sampleLines > 1 ? region.textBox.height / sampleLines / layoutMm : 1.2;
 
   const measure = (size) => {
     ctx.font = fontString(font, size);
@@ -169,13 +274,44 @@ const drawRegionText = (ctx, region, text, { alpha = 1, font: fontOverride = nul
     return { widest, height: size * (lines.length === 1 ? 1 : lineRatio * lines.length) };
   };
   let m = measure(sizeMm);
-  while ((m.widest > area.width || m.height > area.height) && sizeMm > 1) {
+  // targetMm (business name edited after AI generation only): exactly this
+  // size, or the largest size that fits its own area — exact, not in 5 %
+  // steps, so a smaller / larger choice always gives a smaller / larger name.
+  const targetFit = targetMm > 0 ? measure(targetMm) : null;
+  const targetK = targetFit ? Math.min(1, area.width / targetFit.widest, area.height / targetFit.height) : 1;
+  if (targetFit) {
+    sizeMm = targetMm * targetK;
+    m = measure(sizeMm);
+  }
+  while (!targetFit && (m.widest > area.width || m.height > area.height) && sizeMm > 1) {
     sizeMm *= 0.95;
     m = measure(sizeMm);
   }
+  // twoLines: a long single line may break into two lines INSIDE its own
+  // area (never moved to another line) when that makes the text clearly
+  // larger; the break is at the space that balances the two lines best.
+  let ratio = lineRatio;
+  if (!targetFit && twoLines && !wrap && sourceLines.length === 1) {
+    const words = sourceLines[0].split(/\s+/).filter(Boolean);
+    if (words.length > 1) {
+      ctx.font = fontString(font, 10);
+      let best = null;
+      for (let i = 1; i < words.length; i += 1) {
+        const pair = [words.slice(0, i).join(" "), words.slice(i).join(" ")];
+        const w = Math.max(...pair.map((l) => ctx.measureText(l).width));
+        if (!best || w < best.w) best = { w, pair };
+      }
+      const s2 = Math.min((area.width / (best.w * hs)) * 10, area.height / (2 * 1.15), startMm * scale);
+      if (s2 > sizeMm * 1.15) {
+        lines = best.pair;
+        sizeMm = s2;
+        ratio = 1.15;
+      }
+    }
+  }
 
   const align = style.align || "center";
-  const lineHeight = lines.length === 1 ? sizeMm : sizeMm * lineRatio;
+  const lineHeight = lines.length === 1 ? sizeMm : sizeMm * ratio;
   const blockTop = area.y + (area.height - lineHeight * lines.length) / 2;
   const anchorX =
     align === "left" ? area.x : align === "right" ? area.x + area.width : area.x + area.width / 2;
@@ -189,7 +325,7 @@ const drawRegionText = (ctx, region, text, { alpha = 1, font: fontOverride = nul
     ctx.fillStyle = color;
     // Lettering on busy artwork (the layout's own name was outlined letter
     // shapes): a contrasting edge keeps it readable.
-    const edge = outline ? (hexLuminance(color) < 0.5 ? "#ffffff" : "#1b1b1b") : null;
+    const edge = outline ? (hexLuminance(color) < 0.5 ? "#ffffff" : "#2a1a0f") : null;
     lines.forEach((line, i) => {
       ctx.save();
       ctx.translate(anchorX + dx, blockTop + lineHeight * (i + 0.5) + dy);
@@ -197,7 +333,7 @@ const drawRegionText = (ctx, region, text, { alpha = 1, font: fontOverride = nul
       if (edge) {
         ctx.strokeStyle = edge;
         ctx.lineJoin = "round";
-        ctx.lineWidth = sizeMm * 0.16;
+        ctx.lineWidth = sizeMm * 0.1;
         ctx.strokeText(line, 0, 0);
       }
       ctx.fillText(line, 0, 0);
@@ -209,10 +345,13 @@ const drawRegionText = (ctx, region, text, { alpha = 1, font: fontOverride = nul
   if (!color && style.shadow?.color) drawAll(style.shadow.color, style.shadow.dxMm || 0, style.shadow.dyMm || 0);
   // Letters that were shapes in the file have no reliable colour of their
   // own: a dark ink with a light edge.
-  const ink = color || (outline && (!style.color || hexLuminance(style.color) > 0.35) ? "#1a2a4f" : style.color) || "#000000";
+  // The layout's own colour is kept (the outline edge keeps it readable);
+  // dark ink only when the file gave no colour.
+  const ink = color || style.color || (outline ? "#1a2a4f" : "#000000");
   drawAll(ink);
   ctx.restore();
-  return { fittedPt: sizeMm / MM_PER_PT, layoutPt };
+  if (targetFit) return { fittedPt: sizeMm / MM_PER_PT, layoutPt, capped: targetK < 1 - 1e-6 };
+  return { fittedPt: sizeMm / MM_PER_PT, layoutPt, capped: scale > 1 && sizeMm < startMm * scale - 1e-6 };
 };
 
 // Areas of a layer pair (full / bare, same size) where the bare layer erased
@@ -689,6 +828,8 @@ export const drawLayoutPreview = (canvas, { variant, images, content, pxPerMm, s
   ctx.setTransform(pxPerMm, 0, 0, pxPerMm, 0, 0);
   ctx.clearRect(0, 0, widthMm, heightMm);
   const fits = {};
+  // Where the God image is (or can be) placed: { area, rect } in mm.
+  let godFrame = null;
 
   const cutline = variant.cutline?.path ? new Path2D(variant.cutline.path) : null;
   ctx.save();
@@ -727,6 +868,24 @@ export const drawLayoutPreview = (canvas, { variant, images, content, pxPerMm, s
   const overlayBare = layer(images.overlayBare);
   const leftRegions = byRole(variant, "SIDE_BOX_LEFT");
   const rightRegions = byRole(variant, "SIDE_BOX_RIGHT");
+  // Left box as a picture (Customise → Left side → Image) instead of text.
+  const leftShowsImage = sections.showLeftBox && (design?.sections?.leftBoxMode || content.leftBoxMode) === "image";
+  // Designer typography chosen before generating ("" = automatic).
+  const chosenFonts = fontPairForStyle(content.fontStyle);
+  const chosenColour = /^#[0-9a-f]{6}$/i.test(content.textColour || "") ? content.textColour : null;
+  const sizeScale = (region) => textScaleFor(content.textSizes, region);
+  // Areas edited after AI generation (content.areaEdits, AI designs only):
+  // { name, left, right } → { text?, colour?, targetPt? } — the area's own
+  // text, colour and exact point size (the size as generated × the chosen %).
+  // Each is used ONLY for its own area: the business name, the left box text
+  // or the right box text.
+  const areaEdits = content.areaEdits || null;
+  const areaOf = (region) =>
+    region.binding === "businessName" ? "name" : region.role === "SIDE_BOX_LEFT" ? "left" : region.role === "SIDE_BOX_RIGHT" ? "right" : null;
+  const editOf = (region) => (areaEdits && areaOf(region) ? areaEdits[areaOf(region)] || null : null);
+  const editColour = (edit) => (/^#[0-9a-f]{6}$/i.test(edit?.colour || "") ? edit.colour : null);
+  const editTargetMm = (edit) => (Number(edit?.targetPt) > 0 ? Number(edit.targetPt) * MM_PER_PT : null);
+  const editText = (edit, value) => (typeof edit?.text === "string" && edit.text.trim() ? edit.text : value);
   // Areas whose layout artwork is removed: hidden sections, and side boxes
   // that get an app-drawn style instead of the layout's own box.
   const areas = sectionAreas(variant);
@@ -859,7 +1018,12 @@ export const drawLayoutPreview = (canvas, { variant, images, content, pxPerMm, s
       // reference it saw), so it is placed on that box, not cropped to fit.
       const box = images.godImageBox;
       if (box) ctx.drawImage(images.godImage, box.x, box.y, box.width, box.height);
-      else drawCover(ctx, images.godImage, region.box);
+      else {
+        // The customer's own picture: the designer's size and position.
+        const r = placedRect(images.godImage, region.box, content.godPlacement, "cover");
+        ctx.drawImage(images.godImage, r.x, r.y, r.width, r.height);
+        if (!godFrame) godFrame = { area: region.box, rect: r };
+      }
       ctx.restore();
     } else if (images.layoutGod) {
       // Normal Mode: the layout's own God picture, unchanged — inside removed
@@ -914,6 +1078,30 @@ export const drawLayoutPreview = (canvas, { variant, images, content, pxPerMm, s
     }
   }
 
+  // 3-God. Special Die-Cut template (Normal Mode): the customer's God image
+  //    over the artwork, where the designer places it.
+  if (!noTemplate && !images.godImageBox && compositionMode(variant) === "FULL_ARTWORK") {
+    const shownText = (variant.regions || []).filter((r) => {
+      const key = sectionOf(r);
+      return key && sections[key] !== false && r.role !== "SIDE_BOX_LEFT" && r.role !== "SIDE_BOX_RIGHT";
+    });
+    // The full board width (the cutline shapes it) from the top down to just
+    // above the first text / the calendar pad: where the layout's deity is.
+    const free = sketchGodArea({ widthMm, heightMm }, [
+      ...shownText.map((r) => r.textBox || r.box),
+      ...byRole(variant, "CAKE_MOUNT").map((r) => r.box),
+    ]);
+    const area = { x: 0, y: 0, width: widthMm, height: free.y + free.height };
+    if (images.godImage) {
+      // Covers the layout's own deity area (crown at the top), soft edges.
+      const r = placedRect(images.godImage, area, content.godPlacement, "cover", "top");
+      drawFeathered(ctx, images.godImage, r, area, pxPerMm);
+      godFrame = { area, rect: r };
+    } else {
+      godFrame = { area, rect: null };
+    }
+  }
+
   // 3a. Free preview (AI off): cover each removed area with the artwork
   //     next to it, mirrored, so no empty strip, box or leftover border
   //     remains. A real AI design paints these areas as one artwork.
@@ -958,7 +1146,7 @@ export const drawLayoutPreview = (canvas, { variant, images, content, pxPerMm, s
   if (styledBoxes) {
     const icon = iconForProducts(`${content.productList || ""} ${content.rightBoxText || ""} ${content.businessName || ""}`);
     for (const region of [...(sections.showLeftBox ? leftRegions : []), ...(sections.showRightBox ? rightRegions : [])]) {
-      const isText = region.role === "SIDE_BOX_LEFT" || sections.rightBoxMode === "text";
+      const isText = region.role === "SIDE_BOX_LEFT" ? !leftShowsImage : sections.rightBoxMode === "text";
       // AI Mode: a right image box without a photo shows the AI-painted
       // product picture — only the frame is drawn over it.
       const aiProduct = Boolean(fullArtwork) && region.role === "SIDE_BOX_RIGHT" && !isText && !images.productImage;
@@ -1005,12 +1193,33 @@ export const drawLayoutPreview = (canvas, { variant, images, content, pxPerMm, s
     }
   }
 
+  // 4b. Left box picture (inside the box, keeping its border / style).
+  if (leftShowsImage && images.leftBoxImage) {
+    for (const region of leftRegions) {
+      const sw = styledBoxes ? 0 : region.boxStyle?.strokeWidthMm || 0;
+      const inner = boxInner[region.id] || inset(region.box, sw / 2);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(inner.x, inner.y, inner.width, inner.height);
+      ctx.clip();
+      drawCover(ctx, images.leftBoxImage, inner);
+      ctx.restore();
+      if (!styledBoxes && sw && region.boxStyle?.strokeColor) {
+        ctx.strokeStyle = region.boxStyle.strokeColor;
+        ctx.lineWidth = sw;
+        const edge = inset(region.box, sw / 2);
+        ctx.strokeRect(edge.x, edge.y, edge.width, edge.height);
+      }
+    }
+  }
+
   // Empty picture slots without an original to show: a light placeholder on
   // screen (never in output).
   if (showGuides && !original && !noTemplate) {
     const empty = [
       ...(images.godImage ? [] : byRole(variant, "GOD_AREA").map((r) => [r, "God image"])),
       ...(images.productImage || !rightShowsImage ? [] : byBinding(variant, "productImage").map((r) => [r, "Product image"])),
+      ...(leftShowsImage && !images.leftBoxImage ? leftRegions.map((r) => [r, "Left box image"]) : []),
     ];
     for (const [region, label] of empty) {
       const b = region.box;
@@ -1032,6 +1241,9 @@ export const drawLayoutPreview = (canvas, { variant, images, content, pxPerMm, s
   // reads best on the recoloured artwork under the text.
   const textColourFor = (region, area) => {
     if (boxTextColour[region.id]) return boxTextColour[region.id];
+    // AI Mode artwork: the AI painted a plaque under the text — light text
+    // on a dark plaque, dark text on a light one (AI designs only).
+    if (design?.aiText && fullArtwork) return areaLuminance(ctx, area, pxPerMm) < 0.5 ? "#FFF1C9" : "#3B1408";
     if (theme === "original" || !palette.length) return null;
     return areaLuminance(ctx, area, pxPerMm) < 0.5 ? palette[3] || "#ffffff" : palette[0] || "#000000";
   };
@@ -1043,17 +1255,26 @@ export const drawLayoutPreview = (canvas, { variant, images, content, pxPerMm, s
   for (const region of variant.regions || []) {
     if (!region.binding || region.binding === "productImage" || !region.textStyle) continue;
     if (hidden(region)) continue;
-    const value = content[region.binding];
+    if (leftShowsImage && region.role === "SIDE_BOX_LEFT") continue;
+    const edit = editOf(region);
+    const value = editText(edit, content[region.binding]);
     const inner = boxInner[region.id];
     const target = inner ? { ...region, box: inner, textBox: null } : region;
-    const font = fonts ? (region.binding === "businessName" ? fonts.heading : fonts.body) : null;
+    const pair = chosenFonts || fonts;
+    const font = pair ? (region.binding === "businessName" ? pair.heading : pair.body) : null;
     if (value && String(value).trim()) {
       fits[region.id] = drawRegionText(ctx, target, value, {
         font,
-        color: textColourFor(region, textArea(target)),
+        color: editColour(edit) || chosenColour || textColourFor(region, textArea(target)),
+        scale: sizeScale(region),
+        ...(editTargetMm(edit) ? { targetMm: editTargetMm(edit) } : {}),
         // Name and text lines are single-line slots: never wrapped (wrapping
         // would shrink the text to fit two lines into one line's height).
         wrap: region.binding !== "businessName" && region.role !== "TEXT_LINE_1" && region.role !== "TEXT_LINE_2",
+        // Name and text lines: as large as their area allows; a long text
+        // line may use two lines within its own area.
+        fill: region.binding === "businessName" || ["TEXT_LINE_1", "TEXT_LINE_2", "SIDE_BOX_LEFT"].includes(region.role),
+        twoLines: region.role === "TEXT_LINE_1" || region.role === "TEXT_LINE_2",
         // The file had no live text here (letters drawn as shapes), or the
         // text sits straight on a complete AI artwork: a contrasting edge
         // keeps it readable on any background.
@@ -1067,7 +1288,9 @@ export const drawLayoutPreview = (canvas, { variant, images, content, pxPerMm, s
     }
   }
   // 5b. Right box as text: same style as the left box's text.
-  if (sections.showRightBox && sections.rightBoxMode === "text" && String(content.rightBoxText || "").trim()) {
+  const rightEdit = areaEdits?.right || null;
+  const rightText = editText(rightEdit, content.rightBoxText);
+  if (sections.showRightBox && sections.rightBoxMode === "text" && String(rightText || "").trim()) {
     for (const region of rightRegions) {
       const inner = boxInner[region.id] || inset(region.box, Math.min(region.box.width, region.box.height) * 0.08);
       const target = {
@@ -1077,11 +1300,17 @@ export const drawLayoutPreview = (canvas, { variant, images, content, pxPerMm, s
         textStyle: { ...(leftTemplate?.textStyle || {}), align: "center", shadow: null },
         sampleText: "",
       };
-      fits[region.id] = drawRegionText(ctx, target, content.rightBoxText, {
-        font: fonts?.body || null,
+      fits[region.id] = drawRegionText(ctx, target, rightText, {
+        font: (chosenFonts || fonts)?.body || null,
+        scale: sizeScale(region),
+        ...(editTargetMm(rightEdit) ? { targetMm: editTargetMm(rightEdit) } : {}),
         // The left box's colour was made for the left box's fill: on the
         // right box's own background, use what reads best there.
-        color: boxTextColour[region.id] || (areaLuminance(ctx, inner, pxPerMm) < 0.5 ? "#ffffff" : "#2A2620"),
+        color:
+          editColour(rightEdit) ||
+          chosenColour ||
+          boxTextColour[region.id] ||
+          (areaLuminance(ctx, inner, pxPerMm) < 0.5 ? "#ffffff" : "#2A2620"),
         wrap: true,
       });
     }
@@ -1112,5 +1341,9 @@ export const drawLayoutPreview = (canvas, { variant, images, content, pxPerMm, s
     }
     ctx.restore();
   }
-  return { fits };
+  if (!godFrame) {
+    const god = byRole(variant, "GOD_AREA")[0];
+    if (god) godFrame = { area: god.box, rect: null };
+  }
+  return { fits, godFrame };
 };

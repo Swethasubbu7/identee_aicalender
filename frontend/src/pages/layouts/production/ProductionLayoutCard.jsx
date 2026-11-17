@@ -1,5 +1,9 @@
-import { Box, Typography, Chip, Button } from "@mui/material";
+import { useState } from "react";
+import { Box, Typography, Chip, Button, Menu, MenuItem } from "@mui/material";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
+import { downloadLayoutVariantFile } from "../../../services/layoutVariantService";
+import { downloadErrorMessage } from "../../../utils/saveDownload";
 import BrushOutlinedIcon from "@mui/icons-material/BrushOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlined";
 import { colors, radii } from "../../../identeeColors";
@@ -10,11 +14,29 @@ const ProductionLayoutCard = ({ variant, canEdit, onEdit, onCustomise, onDelete,
   const family = variant.familyId || {};
   const status = VARIANT_STATUS[variant.status] || { label: variant.status, color: "default" };
   const isActive = variant.status === "ACTIVE";
+  // Download the original uploaded files (unchanged).
+  const hasProduction = Boolean(variant.assets?.sourceFile || variant.assets?.productionFile);
+  const hasLaser = Boolean(variant.assets?.laserFile);
+  const [menuAnchor, setMenuAnchor] = useState(null);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState("");
+  const download = async (kind) => {
+    setMenuAnchor(null);
+    setDownloading(true);
+    setDownloadError("");
+    try {
+      await downloadLayoutVariantFile(variant._id, kind);
+    } catch (err) {
+      setDownloadError(await downloadErrorMessage(err, "Download failed"));
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <Box
       sx={{
-        background: "#FFFFFF",
+        background: "var(--nc-paper)",
         border: `1px solid ${colors.surfaceBorder}`,
         borderRadius: `${radii.lg}px`,
         overflow: "hidden",
@@ -26,7 +48,7 @@ const ProductionLayoutCard = ({ variant, canEdit, onEdit, onCustomise, onDelete,
       <Box
         sx={{
           height: 220,
-          background: "#F4F1EA",
+          background: "var(--nc-surface-2)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -96,6 +118,23 @@ const ProductionLayoutCard = ({ variant, canEdit, onEdit, onCustomise, onDelete,
               Layout setup
             </Button>
           )}
+          {(hasProduction || hasLaser) && (
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<FileDownloadOutlinedIcon />}
+              disabled={downloading}
+              onClick={(e) => (hasProduction && hasLaser ? setMenuAnchor(e.currentTarget) : download(hasProduction ? "production" : "laser"))}
+            >
+              {downloading ? "Downloading…" : "Download"}
+            </Button>
+          )}
+          <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={() => setMenuAnchor(null)}>
+            <MenuItem onClick={() => download("production")}>
+              {variant.assets?.sourceFile ? "Production file (original CorelDRAW)" : "Production PDF"}
+            </MenuItem>
+            <MenuItem onClick={() => download("laser")}>Laser cutting PDF</MenuItem>
+          </Menu>
           {/* Every layout can be deleted; approved ones ask for the layout code. */}
           {canEdit && (
             <Button
@@ -110,6 +149,9 @@ const ProductionLayoutCard = ({ variant, canEdit, onEdit, onCustomise, onDelete,
             </Button>
           )}
         </Box>
+        {downloadError && (
+          <Typography variant="caption" sx={{ color: "error.main", mt: 0.5 }}>{downloadError}</Typography>
+        )}
       </Box>
     </Box>
   );

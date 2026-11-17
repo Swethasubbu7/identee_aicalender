@@ -30,7 +30,13 @@ import {
   uploadLaserPdf,
   uploadLayoutArtwork,
   getLayoutVariant,
+  validateLayoutVariant,
+  activateLayoutVariant,
+  deactivateLayoutVariant,
+  enhanceLayoutArtwork,
+  approveArtworkCandidate,
 } from "../../../services/layoutVariantService";
+import { friendly } from "../../../utils/layoutCheckMessages";
 import { startPageRender } from "../../../utils/pdfRender";
 import { generateLayoutAssets } from "../../../utils/layoutAssets";
 import EnhanceDialog from "./EnhanceDialog";
@@ -77,7 +83,7 @@ const area = (o) => o.bbox.width * o.bbox.height;
 // Setup: a clean editor — the design in the middle, a short checklist on the
 // right. Starts from what the app detected; the designer fixes what is missing
 // by clicking (or dragging over) elements, and removes unwanted elements.
-const SetupStudio = ({ variant, onSaved, onAdvanced }) => {
+const SetupStudio = ({ variant, onSaved, onChanged, auto = false }) => {
   const summary = variant.importSummary || {};
   const saved = variant.mapping || null;
   const [pageIndex, setPageIndex] = useState(saved?.pageIndex ?? summary.suggestedPageIndex ?? 0);
@@ -95,7 +101,16 @@ const SetupStudio = ({ variant, onSaved, onAdvanced }) => {
   const [busy, setBusy] = useState("");
   const [cutlineId, setCutlineId] = useState(start.cutlineObjectId || null);
   const [registration, setRegistration] = useState(start.registration || null);
-  const [useLaser, setUseLaser] = useState(saved?.cutlineSource === "laser");
+  const [useLaser, setUseLaser] = useState(saved ? saved.cutlineSource === "laser" : Boolean(laserSummary?.analysis?.cutline));
+  // Automatic checks (run after every save) and publishing, on this screen.
+  const [check, setCheck] = useState(variant.validation?.status && variant.validation.status !== "NOT_RUN" ? variant.validation : null);
+  const [status, setStatus] = useState(variant.status);
+  // How sure the detection was, per item (MEDIUM = the designer checks it).
+  const confidence = useMemo(
+    () => Object.fromEntries((suggestion?.regions || []).map((r) => [r.role, r.confidence])),
+    [suggestion],
+  );
+  const [checkedRoles, setCheckedRoles] = useState(() => new Set());
   const [laserConfirmed, setLaserConfirmed] = useState(Boolean(saved?.laserAlignment?.confirmed));
   const [excluded, setExcluded] = useState(start.excludedObjectIds || []);
   const [items, setItems] = useState(() => {
@@ -202,6 +217,7 @@ const SetupStudio = ({ variant, onSaved, onAdvanced }) => {
         return [...set];
       });
     } else if (tool.mode === "pick") {
+      setCheckedRoles((cur) => new Set([...cur, tool.role]));
       setItems((cur) => {
         const prev = cur[tool.role];
         const objectIds = additive && prev ? [...new Set([...prev.objectIds, ...ids])] : ids;
@@ -281,13 +297,63 @@ const SetupStudio = ({ variant, onSaved, onAdvanced }) => {
     await generateLayoutAssets({ ...data.variant, assets: { ...data.variant.assets, productionFile: pdfUrl } });
     return data.variant;
   };
-  const save = async () => {
+  // Save the layout; the print checks (size, cut shape, laser match, image
+  // quality, …) then run automatically. With `autoFinish` (right after the
+  // upload) low-resolution artwork is enlarged (free, no AI) and the layout
+  // is published when every check passes — no manual step.
+  const save = async ({ autoFinish = false } = {}) => {
     setBusy("save");
     setError("");
     try {
-      onSaved(await persist());
+      const fresh = await persist();
+      setStatus(fresh.status);
+      onSaved(fresh, { stay: true });
+      setBusy("check");
+      let result = await validateLayoutVariant(variant._id);
+      const lowArtwork = (result.results || []).some((r) => r.code === "ARTWORK_RESOLUTION" && r.status === "FAIL");
+      if (autoFinish && lowArtwork) {
+        setBusy("enhance");
+        await enhanceLayoutArtwork(variant._id, "smooth");
+        await approveArtworkCandidate(variant._id);
+        const enlarged = (await getLayoutVariant(variant._id)).variant;
+        onSaved(enlarged, { stay: true });
+        result = await validateLayoutVariant(variant._id);
+      }
+      setCheck(result);
+      setStatus(result.variantStatus || fresh.status);
+      if (autoFinish && result.status === "PASS") {
+        setBusy("publish");
+        const data = await activateLayoutVariant(variant._id);
+        setStatus(data.variant?.status || data.status);
+        setNotice({ severity: "success", text: "Layout set up and published automatically. Designers can use it now." });
+      }
+      onChanged?.();
     } catch (err) {
       setError(err.response?.data?.message || err.message || "Saving failed.");
+      if (err.response?.data?.results) setCheck({ status: "FAIL", results: err.response.data.results });
+    } finally {
+      setBusy("");
+    }
+  };
+  // Right after the upload: everything detected → finish on its own.
+  const autoStarted = useRef(false);
+  const autoReady = auto && !saved && Boolean(page) && missing.length === 0 && Boolean(cutlineOk);
+  useEffect(() => {
+    if (!autoReady || autoStarted.current) return;
+    autoStarted.current = true;
+    save({ autoFinish: true });
+  }, [autoReady]); // eslint-disable-line react-hooks/exhaustive-deps
+  const publish = async (activate) => {
+    setBusy("publish");
+    setError("");
+    try {
+      const data = await (activate ? activateLayoutVariant : deactivateLayoutVariant)(variant._id);
+      setStatus(data.variant?.status || data.status);
+      onChanged?.();
+    } catch (err) {
+      setError(err.response?.data?.message || "Publishing failed.");
+      if (err.response?.data?.results) setCheck({ status: "FAIL", results: err.response.data.results });
+    } finally {
       setBusy("");
     }
   };
@@ -341,9 +407,9 @@ const SetupStudio = ({ variant, onSaved, onAdvanced }) => {
   const activeRole = tool.mode === "pick" ? tool.role : null;
 
   return (
-    <Box sx={{ display: "flex", height: "100%", minHeight: 0, background: "#f2f3f5", borderRadius: 2, overflow: "hidden" }}>
+    <Box sx={{ display: "flex", height: "100%", minHeight: 0, background: "var(--nc-surface-2)", borderRadius: 2, overflow: "hidden" }}>
       {/* Tool rail */}
-      <Box sx={{ width: 64, background: "#fff", borderRight: "1px solid #e6e6e6", display: "flex", flexDirection: "column", alignItems: "center", py: 1.5, gap: 1 }}>
+      <Box sx={{ width: 64, background: "var(--nc-paper)", borderRight: "1px solid var(--nc-border-neutral)", display: "flex", flexDirection: "column", alignItems: "center", py: 1.5, gap: 1 }}>
         {[
           { mode: "select", icon: <NearMeOutlinedIcon />, tip: "Select" },
           { mode: "remove", icon: <AutoFixOffOutlinedIcon />, tip: "Remove elements" },
@@ -386,7 +452,7 @@ const SetupStudio = ({ variant, onSaved, onAdvanced }) => {
         />
         {improved && (
           <Alert
-            severity="warning"
+            severity="success"
             sx={{ borderRadius: 0 }}
             action={
               <Button color="inherit" size="small" component="label" disabled={Boolean(busy)}>
@@ -395,13 +461,13 @@ const SetupStudio = ({ variant, onSaved, onAdvanced }) => {
               </Button>
             }
           >
-            A smooth enlargement is used for previews only — it adds no real detail, so the print-quality check still uses
-            {` ${variant.assets?.artworkOverride?.sourceDpi ?? lowestDpi} DPI`} and the layout cannot be activated. Upload the
-            original high-resolution artwork.
+            Enlarged artwork in use (print size). Fine detail stays as in the original
+            {` (${variant.assets?.artworkOverride?.sourceDpi ?? lowestDpi} DPI)`}, so check a printed proof — or upload the original
+            high-resolution artwork if you have it.
           </Alert>
         )}
         {(tool.mode !== "select" || notice) && (
-          <Box sx={{ px: 2, py: 0.75, background: "#fff", borderBottom: "1px solid #eee", display: "flex", alignItems: "center", gap: 1 }}>
+          <Box sx={{ px: 2, py: 0.75, background: "var(--nc-paper)", borderBottom: "1px solid var(--nc-border-neutral)", display: "flex", alignItems: "center", gap: 1 }}>
             <Typography variant="body2" sx={{ flexGrow: 1 }}>
               {notice
                 ? notice.text
@@ -415,7 +481,7 @@ const SetupStudio = ({ variant, onSaved, onAdvanced }) => {
           </Box>
         )}
         <Box ref={boxRef} sx={{ flexGrow: 1, overflow: "auto", display: "flex", p: 2 }}>
-          <Box sx={{ position: "relative", m: "auto", width: view.width * pxPerMm, height: view.height * pxPerMm, flexShrink: 0, background: "#fff", boxShadow: "0 2px 12px rgba(0,0,0,0.12)" }}>
+          <Box sx={{ position: "relative", m: "auto", width: view.width * pxPerMm, height: view.height * pxPerMm, flexShrink: 0, background: "var(--nc-paper)", boxShadow: "0 2px 12px rgba(0,0,0,0.12)" }}>
             <Box sx={{ position: "absolute", inset: 0, overflow: "hidden" }}>
               <canvas
                 ref={canvasRef}
@@ -485,7 +551,7 @@ const SetupStudio = ({ variant, onSaved, onAdvanced }) => {
               const b = boxOf(selected);
               return (
                 <Box
-                  sx={{ position: "absolute", left: Math.max(0, (b.x - view.x) * pxPerMm), top: Math.max(0, (b.y - view.y) * pxPerMm - 44), display: "flex", gap: 0.5, background: "#fff", borderRadius: 2, boxShadow: "0 2px 10px rgba(0,0,0,0.18)", p: 0.5 }}
+                  sx={{ position: "absolute", left: Math.max(0, (b.x - view.x) * pxPerMm), top: Math.max(0, (b.y - view.y) * pxPerMm - 44), display: "flex", gap: 0.5, background: "var(--nc-paper)", borderRadius: 2, boxShadow: "0 2px 10px rgba(0,0,0,0.18)", p: 0.5 }}
                 >
                   <Button size="small" color="error" onClick={() => { setExcluded((c) => [...new Set([...c, ...selected])]); setSelected([]); }}>Remove</Button>
                   <Select size="small" value="" displayEmpty onChange={(e) => applyPickAs(e.target.value)} renderValue={() => "Use as…"} sx={{ fontSize: 13, minWidth: 110 }}>
@@ -500,9 +566,9 @@ const SetupStudio = ({ variant, onSaved, onAdvanced }) => {
       </Box>
 
       {/* Checklist */}
-      <Box sx={{ width: 300, flexShrink: 0, background: "#fff", borderLeft: "1px solid #e6e6e6", display: "flex", flexDirection: "column" }}>
+      <Box sx={{ width: 300, flexShrink: 0, background: "var(--nc-paper)", borderLeft: "1px solid var(--nc-border-neutral)", display: "flex", flexDirection: "column" }}>
         <Box sx={{ p: 2, pb: 1, display: "flex", alignItems: "center" }}>
-          <Typography sx={{ fontWeight: 700, flexGrow: 1 }}>Set up</Typography>
+          <Typography sx={{ fontWeight: 700, flexGrow: 1 }}>Review detected layout</Typography>
           {suggestion && (
             <Tooltip title="Use what the app detected">
               <IconButton size="small" onClick={() => window.confirm("Reset to the detected setup?") && resetToSuggestion()}>
@@ -549,6 +615,13 @@ const SetupStudio = ({ variant, onSaved, onAdvanced }) => {
                 active={activeRole === role}
                 label={ITEMS[role].label}
                 color={COLORS[role]}
+                sub={
+                  set && !saved && confidence[role] === "MEDIUM" && !checkedRoles.has(role)
+                    ? "Detected automatically — check it on the design"
+                    : !set && required.has(role)
+                      ? "Not detected — click it on the design"
+                      : null
+                }
                 onClick={() => setTool({ mode: "pick", role })}
                 onClear={set ? () => setItems((cur) => { const n = { ...cur }; delete n[role]; return n; }) : null}
               />
@@ -562,18 +635,41 @@ const SetupStudio = ({ variant, onSaved, onAdvanced }) => {
             </Box>
           )}
         </Box>
-        <Box sx={{ p: 2, borderTop: "1px solid #eee" }}>
+        <Box sx={{ p: 2, borderTop: "1px solid var(--nc-border-neutral)" }}>
           {missing.length > 0 && (
-            <Typography variant="caption" sx={{ display: "block", color: "text.secondary", mb: 1 }}>
-              Still to select: {missing.map((r) => ITEMS[r].label).join(", ")}
-            </Typography>
+            <Alert severity="warning" sx={{ mb: 1, py: 0, "& .MuiAlert-message": { fontSize: 12.5 } }}>
+              Could not find automatically: {missing.map((r) => ITEMS[r].label).join(", ")}. Click {missing.length === 1 ? "it" : "each"} on
+              the design, then Save layout.
+            </Alert>
           )}
-          <Button fullWidth variant="contained" size="large" disabled={Boolean(busy) || !(cut || (showLaser && laserCut))} onClick={save} sx={{ background: "#7d2ae8", "&:hover": { background: "#6a1fd0" }, borderRadius: 2, textTransform: "none", fontWeight: 700 }}>
-            {busy === "save" ? "Saving…" : "Save & continue"}
+          {auto && !saved && missing.length === 0 && !cutlineOk && (
+            <Alert severity="warning" sx={{ mb: 1, py: 0, "& .MuiAlert-message": { fontSize: 12.5 } }}>
+              Check that the red cut outline sits on the design&apos;s edge, tick the box under “Cut shape”, then Save layout.
+            </Alert>
+          )}
+          {check && <CheckSummary check={check} status={status} />}
+          <Button fullWidth variant="contained" size="large" disabled={Boolean(busy) || !(cut || (showLaser && laserCut))} onClick={() => save({ autoFinish: auto })} sx={{ background: "#7d2ae8", "&:hover": { background: "#6a1fd0" }, borderRadius: 2, textTransform: "none", fontWeight: 700 }}>
+            {busy === "save"
+              ? "Saving…"
+              : busy === "check"
+                ? "Checking…"
+                : busy === "enhance"
+                  ? "Improving image quality…"
+                  : busy === "publish"
+                    ? "Publishing…"
+                    : "Save layout"}
           </Button>
-          <Button fullWidth size="small" sx={{ mt: 1, textTransform: "none", color: "text.secondary" }} onClick={onAdvanced}>
-            Advanced setup
-          </Button>
+          {status === "ACTIVE" ? (
+            <Button fullWidth size="small" color="warning" disabled={Boolean(busy)} onClick={() => publish(false)} sx={{ mt: 1, textTransform: "none" }}>
+              Unpublish (hide from designers)
+            </Button>
+          ) : (
+            check?.status === "PASS" && (
+              <Button fullWidth variant="outlined" disabled={Boolean(busy)} onClick={() => publish(true)} sx={{ mt: 1, textTransform: "none", fontWeight: 700, borderRadius: 2 }}>
+                {busy === "publish" ? "Publishing…" : "Publish for designers"}
+              </Button>
+            )
+          )}
         </Box>
       </Box>
     </Box>
@@ -596,7 +692,8 @@ const SetupStudio = ({ variant, onSaved, onAdvanced }) => {
     if (!suggestion) return;
     setCutlineId(suggestion.cutlineObjectId || null);
     setRegistration(suggestion.registration || null);
-    setUseLaser(false);
+    setUseLaser(Boolean(laserSummary?.analysis?.cutline));
+    setCheckedRoles(new Set());
     setExcluded(suggestion.excludedObjectIds || []);
     const out = {};
     for (const r of suggestion.regions || []) {
@@ -605,6 +702,26 @@ const SetupStudio = ({ variant, onSaved, onAdvanced }) => {
     }
     setItems(out);
   }
+};
+
+// Result of the automatic checks, in plain words.
+const CheckSummary = ({ check, status }) => {
+  const results = check.results || [];
+  const problems = results.filter((r) => r.status === "FAIL");
+  const warnings = results.filter((r) => r.status === "WARN");
+  const ok = check.status === "PASS";
+  return (
+    <Alert severity={ok ? (warnings.length ? "warning" : "success") : "error"} sx={{ mb: 1.25, py: 0.25, "& .MuiAlert-message": { fontSize: 12.5, width: "100%" } }}>
+      <Typography variant="body2" sx={{ fontWeight: 700, fontSize: 13 }}>
+        {status === "ACTIVE" ? "Published · checks passed" : ok ? "All print checks passed" : `${problems.length} thing${problems.length === 1 ? "" : "s"} to fix`}
+      </Typography>
+      {[...problems, ...warnings].slice(0, 4).map((r) => (
+        <Typography key={`${r.code}-${r.message}`} variant="caption" sx={{ display: "block" }}>
+          • {friendly(r)}
+        </Typography>
+      ))}
+    </Alert>
+  );
 };
 
 // One checklist row: status, name, and a click to (re)select it on the design.
@@ -620,8 +737,8 @@ const Card = ({ ok, optional, active, label, sub, color, onClick, onClear, child
       mb: 0.75,
       borderRadius: 2,
       cursor: "pointer",
-      border: `1px solid ${active ? "#7d2ae8" : "#ececec"}`,
-      background: active ? "rgba(125,42,232,0.06)" : "#fff",
+      border: `1px solid ${active ? "#7d2ae8" : "var(--nc-border-neutral)"}`,
+      background: active ? "rgba(125,42,232,0.06)" : "var(--nc-paper)",
       "&:hover": { borderColor: "#c9b3f5" },
     }}
   >

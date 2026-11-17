@@ -63,6 +63,14 @@ export const EMPTY_CONTENT = {
   showTextLine1: true, // Special Die-Cut
   showTextLine2: true,
   rightBoxMode: "image", // "image" | "text"
+  leftBoxMode: "text", // "text" | "image"
+  leftBoxImage: null, // { url, path }
+  godImageOriginal: null, // God image before background removal / enhancement
+  // Typography chosen before generating ("" / {} = automatic).
+  fontStyle: "",
+  textColour: "",
+  textSizes: {},
+  godPlacement: null, // { dx, dy, scale } chosen on the preview
 };
 
 /** The designer options part of the content (sent with Generate). */
@@ -74,4 +82,5 @@ export const contentOptions = (c) => ({
   showTextLine1: c.showTextLine1 !== false,
   showTextLine2: c.showTextLine2 !== false,
   rightBoxMode: c.rightBoxMode === "text" ? "text" : "image",
+  leftBoxMode: c.leftBoxMode === "image" ? "image" : "text",
 });

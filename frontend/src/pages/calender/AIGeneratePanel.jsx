@@ -91,7 +91,7 @@ const AIGeneratePanel = ({
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        background: "#FFFFFF",
+        background: "var(--nc-paper)",
       }}
     >
       <Box
@@ -105,7 +105,7 @@ const AIGeneratePanel = ({
         }}
       >
         <AutoAwesomeIcon sx={{ color: "#B08D35" }} fontSize="small" />
-        <Typography sx={{ color: "#2A2620", fontWeight: 700 }}>
+        <Typography sx={{ color: "var(--nc-text)", fontWeight: 700 }}>
           AI Generate
         </Typography>
       </Box>
@@ -114,7 +114,7 @@ const AIGeneratePanel = ({
         {/* 1. Customer Image Upload */}
         <Typography
           variant="caption"
-          sx={{ color: "#7A7266", fontWeight: 700, letterSpacing: 0.5 }}
+          sx={{ color: "var(--nc-text-2)", fontWeight: 700, letterSpacing: 0.5 }}
         >
           CUSTOMER IMAGE
         </Typography>
@@ -195,7 +195,7 @@ const AIGeneratePanel = ({
         {/* 2. Designer Prompt */}
         <Typography
           variant="caption"
-          sx={{ color: "#7A7266", fontWeight: 700, letterSpacing: 0.5 }}
+          sx={{ color: "var(--nc-text-2)", fontWeight: 700, letterSpacing: 0.5 }}
         >
           DESIGNER PROMPT
         </Typography>
@@ -214,7 +214,7 @@ const AIGeneratePanel = ({
         {/* 3. Cut Type + fixed Calendar Size */}
         <Typography
           variant="caption"
-          sx={{ color: "#7A7266", fontWeight: 700, letterSpacing: 0.5 }}
+          sx={{ color: "var(--nc-text-2)", fontWeight: 700, letterSpacing: 0.5 }}
         >
           CUT TYPE
         </Typography>
@@ -258,7 +258,7 @@ const AIGeneratePanel = ({
           </Typography>
         )}
         {selectedFormat && selectedFormat.cake?.status !== "CONFIRMED" && (
-          <Typography variant="caption" sx={{ color: "#8a6d1f", display: "block", mt: 1 }}>
+          <Typography variant="caption" sx={{ color: "var(--nc-gold-text)", display: "block", mt: 1 }}>
             The cake size for {selectedFormat.label} is not confirmed yet, so
             no layouts can be approved for this size.
           </Typography>
@@ -326,7 +326,7 @@ const AIGeneratePanel = ({
             <Box>
               <Typography
                 variant="body2"
-                sx={{ color: "#2A2620", fontWeight: 600 }}
+                sx={{ color: "var(--nc-text)", fontWeight: 600 }}
               >
                 AI Theme Matching
               </Typography>
@@ -343,7 +343,7 @@ const AIGeneratePanel = ({
         <Box sx={{ px: 2.5, pt: 2, borderTop: "1px solid rgba(176,141,53,0.15)" }}>
           <Typography
             variant="caption"
-            sx={{ color: "#7A7266", fontWeight: 700, letterSpacing: 0.5 }}
+            sx={{ color: "var(--nc-text-2)", fontWeight: 700, letterSpacing: 0.5 }}
           >
             GENERATED
           </Typography>

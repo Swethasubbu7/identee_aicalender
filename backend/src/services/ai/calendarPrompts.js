@@ -8,6 +8,19 @@
 const NO_TEXT =
   "Do not add any text, letters, numbers, logos, watermarks, signatures or calendar grids anywhere in the image.";
 
+// One theme for the whole calendar, top to bottom, and never a cartoon look
+// (designer rule 2026-11-16). Part of every image prompt, before the
+// designer's own instructions, which cannot override it.
+const STYLE_RULE =
+  "STYLE: one consistent theme from top to bottom - the same colour palette, lighting, rendering style and level of detail " +
+  "in every part of the calendar (top, deity, surroundings, frame, background and bottom), so the whole calendar reads as one " +
+  "unified, professionally designed artwork with no part in a different style. Use a refined, realistic traditional devotional " +
+  "art style (premium temple-art painting quality). The deity looks realistic and lifelike: natural skin tones, real depth, " +
+  "soft natural lighting and fine detail in the jewellery and ornaments, like a high-end devotional photograph-painting. " +
+  "Never cartoon, comic, anime, chibi, clip-art, flat vector, 3D toy or childish styles, for the deity or for anything else. " +
+  "No draped cloth, fabric wraps, curtains, sarees or ribbons wrapped around the deity, the frame or the borders. " +
+  "Make the composition original and creative (not a generic template), visually balanced and polished, with a premium finish.";
+
 // The designer's prompt guides the creative treatment; it can never override the rules.
 const designerNote = (prompt) =>
   prompt?.trim()
@@ -52,6 +65,7 @@ const fitGodPrompt = ({ theme, prompt, hasStyleReference }) =>
     "Do not move, resize or restyle the frame or decorations outside the opening -",
     "they will be replaced by the original calendar artwork.",
     theme ? `${themeLine(theme)} Surroundings: ${theme.godSetting}` : "",
+    STYLE_RULE,
     NO_TEXT,
     designerNote(prompt),
   ]
@@ -138,6 +152,7 @@ const specialArtworkPrompt = ({
   cutType = "special-die-cut",
   noPanels = false,
   productArea = false,
+  artDirection = "",
 }) =>
   [
     `You are designing the complete artwork of a ${SHAPE_WORDS[cutType] || "shaped"} printed Indian devotional wall calendar.`,
@@ -149,7 +164,7 @@ const specialArtworkPrompt = ({
     "grey = the calendar board, which your artwork must fill completely, edge to edge, following the outline exactly;",
     noPanels
       ? "there are no text panels: the whole board is artwork;"
-      : "cream areas = panels where the app prints the customer's text or places a product box: keep them calm, plain and light, with no figures, ornaments or strong patterns inside them, and give them a simple decorative border;",
+      : "cream areas = where the app later prints the business name, text lines and box contents: design each as a beautiful ornamental plaque or banner that is part of the artwork (for example a carved gold-bordered cartouche, a scroll banner or an ornate framed panel in the theme colours), with a smooth, evenly coloured inner surface (no pattern, no figures, no flowers inside) so the text is perfectly readable — never plain white or empty strips, and never any letters;",
     productArea
       ? "green box = the right-side product picture: paint a clear, attractive illustration of the business's products there, in a simple decorative frame, with no text;"
       : "",
@@ -158,14 +173,18 @@ const specialArtworkPrompt = ({
     cakeOverlapsArtwork
       ? "blue box = where the printed calendar pad is attached on top: in this layout the decorative background may continue underneath it, but keep it calm there — no part of the deity, no faces, figures or important details inside it."
       : "blue box = where the printed calendar pad is attached: keep that area reserved — only a plain, calm continuation of the background colour; no part of the deity, no flowers, ornaments or figures inside it.",
+    // The pad marker was copied as a flat blue block (test 2026-11-16).
+    "The blue colour is ONLY a position marker: never paint a flat, solid or blue box, frame or rectangle there — the same background texture and lighting as the surrounding artwork continue seamlessly through that area, and the bottom section around the pad is fully designed artwork in the same theme as the top (never a plain or empty lower half).",
     hasTemplateReference
-      ? `Image 3 is the business's selected layout for this calendar: use it only as a guide to the style, colours and kind of decoration; do not copy its deity.${templateHasRemovedAreas ? " Flat grey patches in image 3 are sections the customer removed: they are artwork space — never reproduce them as boxes, panels or banners." : ""}`
+      ? `Image 3 is a professionally hand-designed calendar for this exact layout: treat it as the QUALITY BENCHMARK — match its richness, fine realistic detail, flower density, polish and balanced composition — but create your own new design (different arch, ornaments and colour treatment) and do not copy its deity.${templateHasRemovedAreas ? " Flat grey patches in image 3 are sections the customer removed: they are artwork space — never reproduce them as boxes, panels or banners." : ""}`
       : "",
     "Compose the deity from image 1 naturally within the board: choose a suitable scale and position yourself",
     "(it does not have to sit in a circle, oval or rectangle), keep the head and crown well inside the outline,",
     "and surround it with a new decorative frame, ornaments, flowers and background that suit the die-cut outline.",
     "Paint completely new artwork — do not copy or recolour the template.",
     composition ? composition.brief : "",
+    artDirection,
+    "The grey board includes a few millimetres of bleed outside the cut line: paint the artwork right up to the grey edge. Keep the deity's head, crown and every important detail at least 10 mm inside the outline (safe area).",
     freedSpace
       ? [
           "The customer left some text / content sections out (business name, side boxes or text lines): their space is part of the grey board and must become artwork.",
@@ -178,11 +197,12 @@ const specialArtworkPrompt = ({
       ? "With no text on the board, make the deity more prominent and fill the whole board with a rich, balanced composition of decorative background, flowers, ornaments and textures."
       : "",
     String(products || "").trim()
-      ? `The business is about: ${String(products).trim().slice(0, 200)}. Use suitable related visual elements in the decoration${productArea ? " and in the product picture" : ""} (for example, for clothing or textile shops: draped fabrics, sarees, folded garments) — never as words.`
+      ? `The business is about: ${String(products).trim().slice(0, 200)}. ${productArea ? "Show these products only inside the product picture, as a clean, realistic product photograph. " : ""}Keep the rest of the decoration devotional (flowers, lamps, ornaments, temple motifs) — no products, fabrics or cloth in the decoration, and never any words.`
       : "",
     "Keep the deity exactly the same: identity, face, pose, hand gestures (mudras), weapons and attributes, vahana,",
     "clothing and ornaments must not change, and no figures may be added or removed.",
     theme ? `${themeLine(theme)} Surroundings: ${theme.godSetting}` : "",
+    STYLE_RULE,
     NO_TEXT,
     designerNote(prompt),
   ]
@@ -197,4 +217,4 @@ const specialArtworkPrompt = ({
 const freedSpaceLine = (i = 0) =>
   `Parts of the grey opening are areas where the customer removed text or boxes: fill them as part of the same artwork — ${FREED_SPACE[i % FREED_SPACE.length]} — never leave a blank band.`;
 
-module.exports = { fitGodPrompt, specialArtworkPrompt, SPECIAL_COMPOSITIONS, compositionFor, freedSpaceLine };
+module.exports = { fitGodPrompt, specialArtworkPrompt, SPECIAL_COMPOSITIONS, compositionFor, freedSpaceLine, STYLE_RULE };

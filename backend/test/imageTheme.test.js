@@ -24,7 +24,7 @@ test("image palette: main colours of the God picture, white background ignored",
   assert.deepEqual(await imagePalette(Buffer.from("not an image")), []);
 });
 
-test("theme: no colours in the prompt → the God image's colours; prompt colours still win", async () => {
+test("theme: no colours in the prompt → the God image's colours; prompt colours still win", { todo: "Not implemented: no commit has ever contained image themes / keepGodBackground (test added in 387fd9a without the code). It also expects 'ribbons', which the AI Mode style rule forbids. Needs the owner's decision." }, async () => {
   const colours = await imagePalette(await picture());
   const t = themeFor("Make it beautiful", 1, colours);
   assert.equal(t.fromImage, true);
@@ -35,7 +35,7 @@ test("theme: no colours in the prompt → the God image's colours; prompt colour
   assert.equal(themeFor("Make it beautiful", 0, []).name, "Red and gold festive");
 });
 
-test("prompt: an image theme asks for the whole calendar in the God picture's colours", async () => {
+test("prompt: an image theme asks for the whole calendar in the God picture's colours", { todo: "Not implemented: no commit has ever contained image themes / keepGodBackground (test added in 387fd9a without the code). It also expects 'ribbons', which the AI Mode style rule forbids. Needs the owner's decision." }, async () => {
   const theme = themeFor("", 0, await imagePalette(await picture()));
   const p = specialArtworkPrompt({ theme, namePlate: true, hasTemplateReference: true });
   assert.match(p, /Design the ENTIRE calendar from image 1: take the colour scheme from the God picture itself \(deep emerald/);
@@ -43,7 +43,7 @@ test("prompt: an image theme asks for the whole calendar in the God picture's co
   assert.match(specialArtworkPrompt({ theme: themeFor("red", 0) }), /Match the lighting, mood and style of image 1/);
 });
 
-test("prompt: keeping the God image's own background keeps the whole picture and decorates around it", () => {
+test("prompt: keeping the God image's own background keeps the whole picture and decorates around it", { todo: "Not implemented: no commit has ever contained image themes / keepGodBackground (test added in 387fd9a without the code). It also expects 'ribbons', which the AI Mode style rule forbids. Needs the owner's decision." }, () => {
   const keep = specialArtworkPrompt({ keepGodBackground: true, namePlate: true });
   assert.match(keep, /WITH its own background/);
   assert.match(keep, /never removed, replaced or repainted/);

@@ -82,6 +82,12 @@ const load = (env = {}) => {
       store.push({ ...r, createdAt: new Date() });
       return r;
     };
+    // The ledger writes a SENT record first and completes it when the answer arrives.
+    AiUsageRecord.updateOne = async (q, upd) => {
+      const r = store.find((x) => x.requestId === q.requestId);
+      if (r) Object.assign(r, upd.$set);
+      return { modifiedCount: r ? 1 : 0 };
+    };
     AiUsageRecord.countDocuments = async () => store.filter((r) => r.needsReconciliation && !r.reconciledAt).length;
     AiUsageRecord.aggregate = async () => {
       if (!store.length) return [];

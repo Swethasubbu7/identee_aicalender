@@ -242,7 +242,7 @@ test("enhance: AI enhancement refuses while AI is off (no request)", async () =>
   assert.match(res.body.message, /switched off/);
 });
 
-test("artwork: an upscaled preview is a candidate, compared, approved, and still does NOT pass", async () => {
+test("artwork: a smooth enlargement is a candidate, compared, approved, and then counts as the print artwork", async () => {
   const res = await call(ctrl.enhanceArtwork, { params: { id: "x" }, body: { method: "smooth" } });
   assert.equal(res.status, 200, JSON.stringify(res.body));
   assert.equal(stored.assets.artworkOverride, null); // nothing used until approved
@@ -251,17 +251,16 @@ test("artwork: an upscaled preview is a candidate, compared, approved, and still
   written.push(path.join(__dirname, "..", "src", stored.assets.artworkSource));
   const ok = await call(ctrl.approveArtworkCandidate, { params: { id: "x" } });
   assert.equal(ok.status, 200);
-  // The stored validation is refreshed at once — and still fails honestly.
-  assert.equal(stored.validation.status, "FAIL");
-  assert.match(ok.body.message, /adds no real detail/);
-  assert.match(ok.body.message, /upload a high-resolution source/);
+  // The stored validation is refreshed at once; the enlarged artwork counts.
+  assert.match(ok.body.message, /Enlarged artwork in use/);
+  assert.ok(!stored.validation.results.some((x) => x.code === "ARTWORK_RESOLUTION" && x.status === "FAIL"));
   const o = stored.assets.artworkOverride;
   assert.equal(o.kind, "upscaled");
   assert.ok(o.widthPx >= 3570 && o.heightPx >= 5380);
   const r = validateLayoutVariant(stored.toObject(), { format: FORMAT, profile: null, toleranceMm: 2 });
   const art = r.results.find((x) => x.code === "ARTWORK_RESOLUTION");
-  assert.equal(art.status, "FAIL");
-  assert.match(art.message, /NOT genuine 300-DPI detail/);
+  assert.equal(art.status, "PASS");
+  assert.match(art.message, /enlarged from .* check a printed proof/);
 });
 
 test("artwork: a replacement with different proportions is refused (never stretched against the cutline)", async () => {

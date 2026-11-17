@@ -1,5 +1,6 @@
 import axios from "axios";
 import { apiUrl, authHeaders } from "../config";
+import { saveDownload } from "../utils/saveDownload";
 
 const API_BASE_URL = apiUrl("/api/layout-variants");
 
@@ -15,6 +16,15 @@ export const listLayoutVariants = async (filters = {}) => {
 export const getLayoutVariant = async (id) => {
   const response = await axios.get(`${API_BASE_URL}/${id}`, { headers: authHeaders() });
   return response.data;
+};
+
+// Calendar size + cut type read from the laser PDF (nothing is stored).
+// → { cutType, sizeCode, confident, trimMm, alternatives, reason }
+export const detectLayoutFormat = async (laserFile) => {
+  const form = new FormData();
+  form.append("laserPdf", laserFile);
+  const response = await axios.post(`${API_BASE_URL}/detect`, form, { headers: authHeaders() });
+  return response.data.detection;
 };
 
 // formData: productionPdf, familyCode, familyName, cutType, sizeCode, replace?
@@ -132,4 +142,11 @@ export const approveArtworkCandidate = async (id) => {
 export const discardArtworkCandidate = async (id) => {
   const response = await axios.delete(`${API_BASE_URL}/${id}/artwork/candidate`, { headers: authHeaders() });
   return response.data;
+};
+
+// The original uploaded file of a production layout, unchanged.
+// kind: "production" (the designer's upload) | "laser" (laser-cutting PDF).
+export const downloadLayoutVariantFile = async (id, kind) => {
+  const response = await axios.get(`${API_BASE_URL}/${id}/download/${kind}`, { headers: authHeaders(), responseType: "blob" });
+  saveDownload(response, `layout-${kind}`);
 };

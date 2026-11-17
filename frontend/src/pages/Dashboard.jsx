@@ -61,8 +61,8 @@ const Dashboard = () => {
   }, []);
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", background: "#FAF6EC" }}>
-      <AppSidebar activeKey="dashboard" />
+    <Box sx={{ display: "flex", minHeight: "100vh", background: "var(--nc-bg)" }}>
+      <AppSidebar />
 
       <Box sx={{ flexGrow: 1, p: 4 }}>
         <Box
@@ -74,22 +74,22 @@ const Dashboard = () => {
           }}
         >
           <Box>
-            <Typography variant="h5" sx={{ color: "#2A2620", fontWeight: 700 }}>
+            <Typography variant="h5" sx={{ color: "var(--nc-text)", fontWeight: 700 }}>
               Good Morning, {displayName}! 👋
             </Typography>
-            <Typography variant="body2" sx={{ color: "#7A7266", mt: 0.5 }}>
+            <Typography variant="body2" sx={{ color: "var(--nc-text-2)", mt: 0.5 }}>
               Create beautiful calendars with AI assistance.
             </Typography>
           </Box>
 
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <Badge color="error" variant="dot">
-              <NotificationsNoneOutlinedIcon sx={{ color: "#7A7266" }} />
+              <NotificationsNoneOutlinedIcon sx={{ color: "var(--nc-text-2)" }} />
             </Badge>
             <Avatar sx={{ width: 32, height: 32, background: "#B08D35" }}>
               {initial}
             </Avatar>
-            <Typography variant="body2" sx={{ color: "#2A2620" }}>
+            <Typography variant="body2" sx={{ color: "var(--nc-text)" }}>
               {displayName}
             </Typography>
           </Box>
@@ -100,7 +100,7 @@ const Dashboard = () => {
           <Box
             sx={{
               flex: "1 1 320px",
-              background: "#FFFFFF",
+              background: "var(--nc-paper)",
               border: "1px solid rgba(176,141,53,0.15)",
               borderRadius: 3,
               p: 3,
@@ -124,17 +124,17 @@ const Dashboard = () => {
               <AddCircleOutlineIcon sx={{ color: "#B08D35" }} />
             </Box>
             <Box sx={{ flexGrow: 1 }}>
-              <Typography sx={{ color: "#2A2620", fontWeight: 700 }}>
+              <Typography sx={{ color: "var(--nc-text)", fontWeight: 700 }}>
                 Create New Project
               </Typography>
-              <Typography variant="body2" sx={{ color: "#7A7266", mb: 2 }}>
+              <Typography variant="body2" sx={{ color: "var(--nc-text-2)", mb: 2 }}>
                 Start a new calendar design
               </Typography>
               <Button
                 variant="contained"
                 color="primary"
                 startIcon={<AddCircleOutlineIcon />}
-                onClick={() => navigate("/layouts")}
+                onClick={() => navigate("/layouts?new=1")}
               >
                 Create
               </Button>
@@ -144,7 +144,7 @@ const Dashboard = () => {
           <Box
             sx={{
               flex: "1 1 320px",
-              background: "#FFFFFF",
+              background: "var(--nc-paper)",
               border: "1px solid rgba(176,141,53,0.15)",
               borderRadius: 3,
               p: 3,
@@ -168,10 +168,10 @@ const Dashboard = () => {
               <DescriptionOutlinedIcon sx={{ color: "#B08D35" }} />
             </Box>
             <Box sx={{ flexGrow: 1 }}>
-              <Typography sx={{ color: "#2A2620", fontWeight: 700 }}>
+              <Typography sx={{ color: "var(--nc-text)", fontWeight: 700 }}>
                 Draft Projects
               </Typography>
-              <Typography variant="body2" sx={{ color: "#7A7266", mb: 2 }}>
+              <Typography variant="body2" sx={{ color: "var(--nc-text-2)", mb: 2 }}>
                 Continue working on your designs
               </Typography>
               <Button
@@ -190,7 +190,7 @@ const Dashboard = () => {
         {generated.length > 0 && (
           <>
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-              <Typography variant="h6" sx={{ color: "#2A2620", fontWeight: 700 }}>
+              <Typography variant="h6" sx={{ color: "var(--nc-text)", fontWeight: 700 }}>
                 Generated Designs
               </Typography>
               <Typography
@@ -218,7 +218,7 @@ const Dashboard = () => {
             mb: 2,
           }}
         >
-          <Typography variant="h6" sx={{ color: "#2A2620", fontWeight: 700 }}>
+          <Typography variant="h6" sx={{ color: "var(--nc-text)", fontWeight: 700 }}>
             Recent Projects
           </Typography>
           <Typography
@@ -241,7 +241,7 @@ const Dashboard = () => {
         ) : designs.length === 0 ? (
           <Box
             sx={{
-              background: "#FFFFFF",
+              background: "var(--nc-paper)",
               border: "1px dashed rgba(176,141,53,0.3)",
               borderRadius: 3,
               p: 4,
@@ -249,13 +249,13 @@ const Dashboard = () => {
               mb: 4,
             }}
           >
-            <Typography variant="body2" sx={{ color: "#7A7266", mb: 2 }}>
+            <Typography variant="body2" sx={{ color: "var(--nc-text-2)", mb: 2 }}>
               No projects yet. Create your first calendar to see it here.
             </Typography>
             <Button
               variant="contained"
               color="primary"
-              onClick={() => navigate("/layouts")}
+              onClick={() => navigate("/layouts?new=1")}
             >
               Create New Project
             </Button>
@@ -293,10 +293,10 @@ const Dashboard = () => {
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
             <AutoAwesomeIcon sx={{ color: "#B08D35" }} />
             <Box>
-              <Typography sx={{ color: "#2A2620", fontWeight: 700 }}>
+              <Typography sx={{ color: "var(--nc-text)", fontWeight: 700 }}>
                 Turn your ideas into beautiful calendars
               </Typography>
-              <Typography variant="body2" sx={{ color: "#7A7266" }}>
+              <Typography variant="body2" sx={{ color: "var(--nc-text-2)" }}>
                 Use AI to create stunning, custom calendars in minutes.
               </Typography>
             </Box>
@@ -305,7 +305,7 @@ const Dashboard = () => {
             variant="contained"
             color="primary"
             endIcon={<ArrowForwardIcon />}
-            onClick={() => navigate("/layouts")}
+            onClick={() => navigate("/layouts?new=1")}
           >
             Get Started
           </Button>

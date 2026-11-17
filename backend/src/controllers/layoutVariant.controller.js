@@ -3,6 +3,7 @@ const { canUseLayout, hasFullAccess } = require("../services/layout/layoutAccess
 const LayoutFamily = require("../models/LayoutFamily");
 const { runLayoutValidation } = require("../services/layout/runLayoutValidation");
 const { toPublicUrl } = require("../lib/assetUrl");
+const { sendStoredFile } = require("../lib/sendStoredFile");
 
 
 // Absolute asset URLs; internal import data is only shown to admins.
@@ -200,7 +201,31 @@ const archiveVariant = async (req, res) => {
   }
 };
 
+// GET /api/layout-variants/:id/download/:kind   kind = production | laser
+// The original uploaded file, unchanged: production = the designer's upload
+// (the CorelDRAW file when one was uploaded, else the production PDF);
+// laser = the laser-cutting PDF. Read only — nothing is changed.
+const downloadVariantFile = async (req, res) => {
+  try {
+    const variant = await LayoutVariant.findById(req.params.id).populate("familyId", "code name status");
+    if (!variant || (!hasFullAccess(req) && !canUseLayout(req, variant))) {
+      return res.status(404).json({ message: "Layout variant not found" });
+    }
+    const { kind } = req.params;
+    const assets = variant.assets || {};
+    const stored = kind === "laser" ? assets.laserFile : kind === "production" ? assets.sourceFile || assets.productionFile : null;
+    if (!stored) return res.status(404).json({ message: "This layout has no such file to download." });
+    const base = [variant.familyId?.code || variant.familyId?.name || "layout", variant.sizeCode, kind].filter(Boolean).join("-");
+    const sent = await sendStoredFile(res, stored, base);
+    if (!sent) res.status(404).json({ message: "The uploaded file could not be found on this server." });
+  } catch (error) {
+    console.error("Download layout file error:", error);
+    if (!res.headersSent) res.status(400).json({ message: "Invalid layout variant ID" });
+  }
+};
+
 module.exports = {
+  downloadVariantFile,
   listVariants,
   getVariant,
   updateVariant,

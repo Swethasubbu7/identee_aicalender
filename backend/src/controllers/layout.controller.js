@@ -1,6 +1,7 @@
 const Layout = require("../models/Layout");
 const { CUT_TYPES } = require("../constants/calendar");
 const { toPublicUrl, uploadPath } = require("../lib/assetUrl");
+const { sendStoredFile } = require("../lib/sendStoredFile");
 
 const ALLOWED_TYPES = CUT_TYPES;
 
@@ -183,7 +184,26 @@ const deleteLayout = async (req, res) => {
   }
 };
 
+// GET /api/layouts/:id/download — the uploaded layout file, unchanged (the
+// preview picture when no separate layout file was uploaded). Read only.
+const downloadLayoutFile = async (req, res) => {
+  try {
+    const layout = await Layout.findById(req.params.id);
+    if (!layout) return res.status(404).json({ message: "Layout not found" });
+    const stored = layout.layoutFile || layout.previewImage;
+    if (!stored || /^https?:\/\//i.test(stored)) {
+      return res.status(404).json({ message: "This layout has no uploaded file to download." });
+    }
+    const sent = await sendStoredFile(res, stored, [layout.name, layout.size].filter(Boolean).join("-"));
+    if (!sent) res.status(404).json({ message: "The uploaded file could not be found on this server." });
+  } catch (error) {
+    console.error("Download layout error:", error);
+    if (!res.headersSent) res.status(400).json({ message: "Invalid layout ID" });
+  }
+};
+
 module.exports = {
+  downloadLayoutFile,
   getLayouts,
   getLayoutById,
   createLayout,

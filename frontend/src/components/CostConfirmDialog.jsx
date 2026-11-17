@@ -127,7 +127,7 @@ export const useCostConfirmation = () => {
             </TableBody>
           </Table>
         )}
-        <Typography variant="caption" component="p" sx={{ color: "#7A7266", mb: 1 }}>
+        <Typography variant="caption" component="p" sx={{ color: "var(--nc-text-2)", mb: 1 }}>
           Basis: {BASIS_LABEL[e?.status] || e?.status}. {e?.basis}
         </Typography>
         {state?.reasons?.map((r) => (

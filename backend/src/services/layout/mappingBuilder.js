@@ -299,6 +299,33 @@ function buildVariantGeometry(page, mapping, laserPage = null) {
           }
         : {};
       region.textStyle = { ...fromPdf, ...pickStyleOverrides(spec.textStyle) };
+      // Lettering drawn as shapes: its own colour (the most-used fill), so
+      // the new text keeps the layout's colour.
+      if (!first && !region.textStyle.color && ["NAME_TEXT", "TEXT_LINE_1", "TEXT_LINE_2"].includes(spec.role)) {
+        const byColour = new Map();
+        for (const o of objects) {
+          if (o.type !== "path" || o.paint === "clip" || !o.fillColor) continue;
+          byColour.set(o.fillColor, (byColour.get(o.fillColor) || 0) + o.bbox.width * o.bbox.height);
+        }
+        const total = [...byColour.values()].reduce((x, y) => x + y, 0);
+        const top = [...byColour.entries()].sort((a, b) => b[1] - a[1])[0];
+        if (top && top[1] >= total * 0.6) {
+          region.textStyle.color = top[0];
+        } else if (total > 0) {
+          // Gradient lettering (many shades): the area-weighted average of the
+          // letters' own colours — never mixed with the band behind them.
+          let r = 0, g = 0, b = 0;
+          for (const [hex, a] of byColour) {
+            const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+            if (!m) continue;
+            r += parseInt(m[1], 16) * a;
+            g += parseInt(m[2], 16) * a;
+            b += parseInt(m[3], 16) * a;
+          }
+          const h = (v) => Math.round(v / total).toString(16).padStart(2, "0");
+          region.textStyle.color = `#${h(r)}${h(g)}${h(b)}`;
+        }
+      }
       // Duplicate copies (e.g. a shadow drawn as a second text object) count once.
       region.sampleText =
         [...new Set(texts.flatMap((t) => t.text.split("\n")).map((l) => l.trim()))].join("\n") || null;

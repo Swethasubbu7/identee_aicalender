@@ -5,7 +5,7 @@ import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 
 // Content inputs shared by Customise and AI Generate.
 export const SectionLabel = ({ children }) => (
-  <Typography variant="caption" sx={{ color: "#7A7266", fontWeight: 700, letterSpacing: 0.5, display: "block", mb: 1 }}>
+  <Typography variant="caption" sx={{ color: "var(--nc-text-2)", fontWeight: 700, letterSpacing: 0.5, display: "block", mb: 1 }}>
     {children}
   </Typography>
 );

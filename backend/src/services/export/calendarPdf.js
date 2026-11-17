@@ -56,8 +56,8 @@ const setMeta = (doc, variant, meta, role, pending) => {
     `${role} · ${variant.cutType} ${variant.sizeCode} · layout ${meta.familyCode || ""} · cake ${meta.cakeLabel || ""}`.trim(),
   );
   doc.setKeywords([role, ...pending]);
-  doc.setCreator("IDENTEE AI Calendar Designer");
-  doc.setProducer("IDENTEE AI Calendar Designer");
+  doc.setCreator("Nauticrew AI Calendar Designer");
+  doc.setProducer("Nauticrew AI Calendar Designer");
 };
 
 // White margin around the calendar on both files. Without it, cutline parts

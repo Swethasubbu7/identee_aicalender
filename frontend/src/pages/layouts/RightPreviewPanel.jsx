@@ -109,7 +109,7 @@ const RightPreviewPanel = ({
         maxWidth: { xs: "100%", md: 330 },
         flexShrink: 0,
         height: "100%",
-        background: "#FFFFFF",
+        background: "var(--nc-paper)",
         borderLeft: { xs: "none", md: "1px solid rgba(176,141,53,0.15)" },
         overflowY: "auto",
       }}
@@ -137,14 +137,14 @@ const RightPreviewPanel = ({
         {tab === "manual" ? (
           <>
             {!selectedImage ? (
-              <Typography variant="body2" sx={{ color: "#7A7266" }}>
+              <Typography variant="body2" sx={{ color: "var(--nc-text-2)" }}>
                 Select an image on the canvas to adjust it.
               </Typography>
             ) : (
               <>
                 <Typography
                   variant="subtitle2"
-                  sx={{ color: "#2A2620", mb: 1 }}
+                  sx={{ color: "var(--nc-text)", mb: 1 }}
                 >
                   Position &amp; Size
                 </Typography>
@@ -207,7 +207,7 @@ const RightPreviewPanel = ({
                       ) : (
                         <LockOpenOutlinedIcon
                           fontSize="small"
-                          sx={{ color: "#7A7266" }}
+                          sx={{ color: "var(--nc-text-2)" }}
                         />
                       )}
                     </IconButton>
@@ -216,7 +216,7 @@ const RightPreviewPanel = ({
 
                 <Typography
                   variant="subtitle2"
-                  sx={{ color: "#2A2620", mb: 1 }}
+                  sx={{ color: "var(--nc-text)", mb: 1 }}
                 >
                   Rotation
                 </Typography>
@@ -236,7 +236,7 @@ const RightPreviewPanel = ({
                   />
                   <Typography
                     variant="body2"
-                    sx={{ minWidth: 40, color: "#2A2620" }}
+                    sx={{ minWidth: 40, color: "var(--nc-text)" }}
                   >
                     {Math.round(selectedImage.angle || 0)}°
                   </Typography>
@@ -265,7 +265,7 @@ const RightPreviewPanel = ({
 
                 <Typography
                   variant="subtitle2"
-                  sx={{ color: "#2A2620", mb: 1 }}
+                  sx={{ color: "var(--nc-text)", mb: 1 }}
                 >
                   Image Filters
                 </Typography>
@@ -291,7 +291,7 @@ const RightPreviewPanel = ({
 
             <Divider sx={{ mb: 2 }} />
 
-            <Typography variant="subtitle2" sx={{ color: "#2A2620", mb: 1 }}>
+            <Typography variant="subtitle2" sx={{ color: "var(--nc-text)", mb: 1 }}>
               Calendar Settings
             </Typography>
             <Stack spacing={2}>
@@ -340,7 +340,7 @@ const RightPreviewPanel = ({
           <>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
               <AutoAwesomeIcon sx={{ color: "#B08D35" }} fontSize="small" />
-              <Typography variant="subtitle2" sx={{ color: "#2A2620" }}>
+              <Typography variant="subtitle2" sx={{ color: "var(--nc-text)" }}>
                 AI Image Generation
               </Typography>
             </Box>
@@ -354,13 +354,13 @@ const RightPreviewPanel = ({
 
             <Typography
               variant="body2"
-              sx={{ color: "#2A2620", fontWeight: 600, mb: 1 }}
+              sx={{ color: "var(--nc-text)", fontWeight: 600, mb: 1 }}
             >
               1. Upload Image
             </Typography>
             <Box sx={{ mb: 2 }}>
               {selectedImage ? (
-                <Typography variant="caption" sx={{ color: "#7A7266" }}>
+                <Typography variant="caption" sx={{ color: "var(--nc-text-2)" }}>
                   Using the currently selected image on canvas.
                 </Typography>
               ) : (
@@ -372,7 +372,7 @@ const RightPreviewPanel = ({
 
             <Typography
               variant="body2"
-              sx={{ color: "#2A2620", fontWeight: 600, mb: 1 }}
+              sx={{ color: "var(--nc-text)", fontWeight: 600, mb: 1 }}
             >
               2. Designer Prompt
             </Typography>
@@ -399,7 +399,7 @@ const RightPreviewPanel = ({
 
             <Typography
               variant="body2"
-              sx={{ color: "#2A2620", fontWeight: 600, mb: 1 }}
+              sx={{ color: "var(--nc-text)", fontWeight: 600, mb: 1 }}
             >
               3. Style
             </Typography>

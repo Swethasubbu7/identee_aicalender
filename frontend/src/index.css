@@ -1,3 +1,38 @@
+/* Page colours for light and dark mode. Components use these through
+   `var(--nc-…)` (see identeeColors.js); <html data-theme="dark"> switches
+   them. Print/preview canvases never use them: print colours do not change. */
+:root {
+  --nc-bg: #faf6ec;
+  --nc-paper: #ffffff;
+  --nc-surface-2: #f3eee2;
+  --nc-well: #ede7d9;
+  --nc-text: #2a2620;
+  --nc-text-2: #7a7266;
+  --nc-text-3: #9e9e9e;
+  --nc-gold-text: #8a6d1f;
+  --nc-border: rgba(176, 141, 53, 0.2);
+  --nc-border-neutral: #e5e5e5;
+  --nc-warn-bg: #fff4d6;
+  --nc-error-bg: #fdecea;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --nc-bg: #12100d;
+  --nc-paper: #1c1915;
+  --nc-surface-2: #262219;
+  --nc-well: #2a261e;
+  --nc-text: #f1ece0;
+  --nc-text-2: #b5ac9c;
+  --nc-text-3: #8f877a;
+  --nc-gold-text: #e9c767;
+  --nc-border: rgba(201, 162, 39, 0.25);
+  --nc-border-neutral: #3a352c;
+  --nc-warn-bg: #3a2f12;
+  --nc-error-bg: #3b1a17;
+  color-scheme: dark;
+}
+
 html,
 body,
 #root {
@@ -5,4 +40,10 @@ body,
   padding: 0;
   min-height: 100%;
   width: 100%;
+}
+
+body {
+  background: var(--nc-bg);
+  color: var(--nc-text);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }

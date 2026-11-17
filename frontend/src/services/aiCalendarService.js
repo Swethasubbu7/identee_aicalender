@@ -48,6 +48,14 @@ export const saveAiVariationPreview = async (id, index, blob) => {
   return response.data;
 };
 
+// AI designs, after generation: one area of one design — area "name",
+// "left" or "right"; edit { text?, size?, colour? } (null = as generated).
+// No AI request.
+export const setAiVariationEdit = async (id, index, area, edit) => {
+  const response = await axios.put(variationUrl(id, index, "edits"), { area, ...(edit || {}) }, { headers: authHeaders() });
+  return response.data.job;
+};
+
 export const getAiCalendarJob = async (id) => {
   const response = await axios.get(`${API_BASE_URL}/${id}`, { headers: authHeaders() });
   return response.data.job;

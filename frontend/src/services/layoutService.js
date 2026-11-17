@@ -1,5 +1,6 @@
 import axios from "axios";
 import { apiUrl, authHeaders } from "../config";
+import { saveDownload } from "../utils/saveDownload";
 
 const API_BASE_URL = apiUrl("/api/layouts");
 
@@ -37,4 +38,10 @@ export const deactivateLayout = async (id) => {
     headers: authHeaders(),
   });
   return response.data;
+};
+
+// The uploaded layout file, unchanged.
+export const downloadLayoutFile = async (id) => {
+  const response = await axios.get(`${API_BASE_URL}/${id}/download`, { headers: authHeaders(), responseType: "blob" });
+  saveDownload(response, "layout");
 };

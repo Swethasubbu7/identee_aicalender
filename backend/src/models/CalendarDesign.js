@@ -19,9 +19,19 @@ const calendarDesignSchema = new mongoose.Schema(
       businessName: { type: String, default: "" },
       productList: { type: String, default: "" },
       address: { type: String, default: "" },
-      godImage: { type: String, default: null }, // relative upload path
+      godImage: { type: String, default: null }, // relative upload path (or a God-library picture)
+      // The God image before background removal / enhancement (to undo it).
+      godImageOriginal: { type: String, default: null },
       productImage: { type: String, default: null },
       rightBoxText: { type: String, default: "" },
+      leftBoxImage: { type: String, default: null }, // left box as a picture
+      leftBoxMode: { type: String, enum: ["image", "text"], default: "text" },
+      // Typography chosen before generating ("" / {} = automatic).
+      fontStyle: { type: String, default: "" },
+      textColour: { type: String, default: "" },
+      textSizes: { type: mongoose.Schema.Types.Mixed, default: {} },
+      // God image position / size chosen on the preview { dx, dy, scale }.
+      godPlacement: { type: mongoose.Schema.Types.Mixed, default: null },
       // Optional sections (customer's choice) and what the right box holds.
       showBusinessName: { type: Boolean, default: true },
       showLeftBox: { type: Boolean, default: true },

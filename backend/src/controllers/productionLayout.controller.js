@@ -24,12 +24,13 @@ const {
 const { buildVariantGeometry, MappingError } = require("../services/layout/mappingBuilder");
 const { proposeCorrection, applyCorrection } = require("../services/layout/geometryCorrection");
 const { runLayoutValidation } = require("../services/layout/runLayoutValidation");
-const { suggestMapping } = require("../services/layout/mappingSuggestions");
+const { suggestMapping, growTextShapes } = require("../services/layout/mappingSuggestions");
 const { getUpscaler } = require("../services/ai/upscaler");
 const { getImageAi } = require("../services/ai/imageAi");
 const { estimateImages, checkLimits } = require("../services/ai/spendGuard");
 const { recordedRequest } = require("../services/ai/usageLedger");
 const { isCdr, convertCdrToPdf } = require("../services/layout/cdrConverter");
+const { detectFormat, refineCutType } = require("../services/layout/autoFormat");
 
 // The admin-confirmed size correction, if any (see geometryCorrection.js).
 const activeCorrection = (variant) => (variant.geometryCorrection?.active ? variant.geometryCorrection : null);
@@ -135,14 +136,53 @@ const importProductionPdf = async (req, res) => {
   const pdfPath = designFile?.path;
   try {
     req.file = designFile;
-    const familyCode = (req.body.familyCode || "").trim();
-    const familyName = (req.body.familyName || "").trim();
-    const { cutType, sizeCode } = req.body;
+    let familyCode = (req.body.familyCode || "").trim();
+    let familyName = (req.body.familyName || "").trim();
+    let { cutType, sizeCode } = req.body;
     const replace = req.body.replace === "true" || req.body.replace === true;
 
     if (!req.file) {
       removeQuietly(laserUpload?.path);
       return res.status(400).json({ message: "Upload the production PDF." });
+    }
+
+    // Automatic mode: only the two PDFs are uploaded. Size and cut type come
+    // from the laser cutline (and the design, for Die-Cut vs Special), the
+    // name from the file name; an existing layout is never replaced.
+    let preDesign = null;
+    let preLaser = null;
+    let detection = null;
+    if (req.body.auto === "true" || req.body.auto === true) {
+      if (!laserUpload) {
+        removeQuietly(pdfPath);
+        return res.status(400).json({ message: "Upload the laser PDF too." });
+      }
+      preDesign = await extractOrExplain(pdfPath, req.file.originalname);
+      if (preDesign.error) {
+        removeQuietly(pdfPath);
+        removeQuietly(laserUpload.path);
+        return res.status(400).json({ message: `Production PDF: ${preDesign.error}`, code: preDesign.code });
+      }
+      preLaser = await extractOrExplain(laserUpload.path, laserUpload.originalname);
+      if (preLaser.error) {
+        removeQuietly(pdfPath);
+        removeQuietly(laserUpload.path);
+        return res.status(400).json({ message: `Laser PDF: ${preLaser.error}`, code: preLaser.code });
+      }
+      const formats = await CalendarFormat.find({ active: true }).lean();
+      detection = refineCutType(detectFormat(preLaser.data, formats), preDesign.data, formats);
+      if (!detection.cutType || !detection.sizeCode) {
+        removeQuietly(pdfPath);
+        removeQuietly(laserUpload.path);
+        return res.status(422).json({ message: detection.reason, detection });
+      }
+      cutType = detection.cutType;
+      sizeCode = detection.sizeCode;
+      const base = (req.body.familyName || "").trim() || "Layout";
+      familyName = base;
+      const root = base.toUpperCase().replace(/[^A-Z0-9/]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 34) || "LAYOUT";
+      familyCode = root;
+      for (let n = 2; await LayoutFamily.exists({ code: familyCode }); n += 1) familyCode = `${root}-${n}`;
     }
     if (!familyCode || !CUT_TYPES.includes(cutType) || !sizeCode) {
       removeQuietly(pdfPath);
@@ -183,7 +223,7 @@ const importProductionPdf = async (req, res) => {
         .json({ message: "Deactivate the layout before replacing its production PDF." });
     }
 
-    const design = await extractOrExplain(pdfPath, req.file.originalname);
+    const design = preDesign || (await extractOrExplain(pdfPath, req.file.originalname));
     if (design.error) {
       removeQuietly(pdfPath);
       removeQuietly(laserUpload?.path);
@@ -193,7 +233,7 @@ const importProductionPdf = async (req, res) => {
     let laserData = null;
     let laserRead_ = null;
     if (laserUpload) {
-      const laserRead = await extractOrExplain(laserUpload.path, laserUpload.originalname);
+      const laserRead = preLaser || (await extractOrExplain(laserUpload.path, laserUpload.originalname));
       laserRead_ = laserRead;
       if (laserRead.error) {
         removeQuietly(pdfPath);
@@ -286,12 +326,35 @@ const importProductionPdf = async (req, res) => {
       variantId: variant._id,
       familyId: family._id,
       importSummary: variant.importSummary,
+      ...(detection && { detection }),
     });
   } catch (error) {
     console.error("Import production PDF error:", error);
     removeQuietly(pdfPath);
     removeQuietly(laserUpload?.path);
     res.status(500).json({ message: "Failed to import production PDF" });
+  }
+};
+
+// POST /api/layout-variants/detect  multipart: laserPdf
+//   Reads the calendar size and cut type from the laser PDF's cutline (the
+//   designer only uploads the two PDFs). Nothing is stored: the uploaded copy
+//   is removed again; the real import follows with both files.
+const detectLayoutFormat = async (req, res) => {
+  const file = req.file;
+  if (!file) return res.status(400).json({ message: "Upload the laser PDF." });
+  try {
+    const read = await extractOrExplain(file.path, file.originalname);
+    if (read.error) return res.status(400).json({ message: `Laser PDF: ${read.error}`, code: read.code });
+    const formats = await CalendarFormat.find({ active: true }).lean();
+    const detection = detectFormat(read.data, formats);
+    if (read.pdfPath && read.pdfPath !== file.path) removeQuietly(read.pdfPath);
+    res.status(200).json({ detection });
+  } catch (error) {
+    console.error("Detect layout format error:", error);
+    res.status(500).json({ message: "Could not read the laser PDF." });
+  } finally {
+    removeQuietly(file.path);
   }
 };
 
@@ -334,6 +397,22 @@ const saveMapping = async (req, res) => {
 
     const pageIndex = Number(req.body.pageIndex) || 0;
     const laserPage = laserPageFor(variant, await readLaserData(variant));
+    // Text drawn as shapes: the whole original line (all its words / rows in
+    // the same colour) is taken, so none of the old text is left in the
+    // artwork and the new text gets the line's full width.
+    if (Array.isArray(req.body.regions) && data.pages[pageIndex]) {
+      const page = data.pages[pageIndex];
+      const used = (except) =>
+        new Set([
+          ...(req.body.excludedObjectIds || []),
+          ...req.body.regions.filter((r) => r !== except).flatMap((r) => r.objectIds || []),
+        ]);
+      req.body.regions = req.body.regions.map((r) =>
+        ["NAME_TEXT", "TEXT_LINE_1", "TEXT_LINE_2"].includes(r.role) && r.source !== "laser" && Array.isArray(r.objectIds)
+          ? { ...r, objectIds: growTextShapes(page, r.objectIds, { taken: used(r) }) }
+          : r,
+      );
+    }
     // Geometry as drawn in the file; an admin-confirmed size correction is
     // re-applied on top (the laser PDF is compared with the file as drawn).
     const sourceGeometry = buildVariantGeometry(data.pages[pageIndex], req.body, laserPage);
@@ -344,6 +423,33 @@ const saveMapping = async (req, res) => {
     variant.regions = geometry.regions;
     variant.artworkRasters = geometry.artworkRasters;
     variant.laserCheck = laserCheckFor(sourceGeometry, await laserAnalysisFor(variant, laserPage));
+    // The frame artwork is a picture inside the production PDF: save it as
+    // the layout's frame PNG automatically (exactly as embedded, no
+    // resampling; the PDF is not changed). A frame already set is kept.
+    if (!variant.assets.frame) {
+      const frameSpec = (req.body.regions || []).find((r) => r.role === "FRAME");
+      const frameObject =
+        frameSpec?.objectIds?.length === 1
+          ? data.pages[pageIndex].objects.find((o) => o.id === frameSpec.objectIds[0] && o.type === "image")
+          : null;
+      if (frameObject) {
+        try {
+          const pdfPath = path.join(__dirname, "..", variant.assets.productionFile);
+          const pixels = await extractRasterAt(await fs.promises.readFile(pdfPath), pageIndex, frameObject.bbox);
+          if (pixels) {
+            const filename = `${Date.now()}-frame.png`;
+            await sharp(pixels.data, { raw: { width: pixels.width, height: pixels.height, channels: pixels.channels } })
+              .png()
+              .toFile(path.join(__dirname, "..", "uploads", "production", filename));
+            variant.assets.frame = uploadPath("production", filename);
+            variant.assets.frameWidthPx = pixels.width;
+            variant.assets.frameHeightPx = pixels.height;
+          }
+        } catch (err) {
+          console.error("Automatic frame extraction failed (upload one instead):", err.message);
+        }
+      }
+    }
     if (!variant.assets.frame) {
       // Until a separate frame PNG is uploaded, judge frame resolution by the
       // frame image embedded in the production PDF.
@@ -840,6 +946,18 @@ const enhanceArtwork = async (req, res) => {
     }
 
     const filename = `${Date.now()}-artwork-${method === "ai" ? "ai-enhanced" : "smooth"}.jpg`;
+    if (method !== "ai") {
+      // Enlarge in ×2 steps (cleaner edges than one big jump).
+      let w = pixels.width;
+      let h = pixels.height;
+      let buf = await base.png().toBuffer();
+      while (w * 2 < plan.target.widthPx) {
+        w *= 2;
+        h *= 2;
+        buf = await sharp(buf).resize(w, h, { kernel: "lanczos3", fit: "fill" }).sharpen({ sigma: 0.5, m1: 0.4, m2: 1.2 }).png().toBuffer();
+      }
+      base = sharp(buf);
+    }
     await base
       .resize(plan.target.widthPx, plan.target.heightPx, { kernel: "lanczos3", fit: "fill" })
       .sharpen({ sigma: method === "ai" ? 0.4 : 0.6 })
@@ -897,8 +1015,8 @@ const approveArtworkCandidate = async (req, res) => {
     res.status(200).json({
       message:
         candidate.kind === "upscaled"
-          ? `Smooth enlargement in use for previews. It adds no real detail, so the print-quality check still uses ${candidate.sourceDpi} DPI` +
-            (stillLow ? " and the layout still fails validation — upload a high-resolution source." : ".")
+          ? `Enlarged artwork in use (${candidate.widthPx} × ${candidate.heightPx} px, print size).` +
+            (stillLow ? " The layout still needs attention — see the checks." : " The image-quality check passes; check a printed proof for fine detail.")
           : `Enhanced artwork approved (real detail about ${candidate.detailDpi} DPI). Validation: ${validation.status}.`,
       artworkOverride: variant.assets.artworkOverride,
       validation: variant.validation,
@@ -1077,6 +1195,7 @@ const deleteVariant = async (req, res) => {
 };
 
 module.exports = {
+  detectLayoutFormat,
   importProductionPdf,
   getEnhancePlan,
   enhanceArtwork,

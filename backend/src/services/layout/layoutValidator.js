@@ -210,6 +210,16 @@ function validateStructure(variant, format, toleranceMm, add) {
     add(S, "ARTWORK_RESOLUTION", status,
       `Replacement artwork ${override.widthPx}×${override.heightPx} px = ${override.dpi} DPI at print size ` +
         `(blocks below ${config.MIN_ARTWORK_DPI} DPI; print target ${config.EXPORT_FALLBACK_DPI} DPI).`);
+  } else if (override?.kind === "upscaled" && Array.isArray(rasters) && rasters.length) {
+    // Smooth enlargement approved by the designer: it is the artwork that is
+    // printed, so its print resolution counts (the owner accepted this,
+    // 2026-11-16). Fine detail stays as soft as the original: a printed proof
+    // is recommended, and the message says so.
+    const r = rasters[0];
+    const printDpi = Math.round(Math.min(override.widthPx / (r.widthMm / 25.4), override.heightPx / (r.heightMm / 25.4)));
+    add(S, "ARTWORK_RESOLUTION", printDpi < config.MIN_ARTWORK_DPI ? "FAIL" : "PASS",
+      `Enlarged artwork ${override.widthPx}×${override.heightPx} px = ${printDpi} DPI at print size ` +
+        `(enlarged from ${override.sourcePx} px, ${override.sourceDpi} DPI; fine detail stays as in the original — check a printed proof).`);
   } else if (!Array.isArray(rasters)) {
     add(S, "ARTWORK_RESOLUTION", "WARN", "Artwork resolution not measured yet — save the mapping again to measure it.");
   } else if (rasters.length) {

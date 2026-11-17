@@ -32,8 +32,16 @@ const aiUsageRecordSchema = new mongoose.Schema(
       raw: { type: mongoose.Schema.Types.Mixed, default: null }, // provider usageMetadata as returned
     },
 
-    status: { type: String, enum: ["SUCCESS", "FAILED", "TIMEOUT", "BLOCKED"], required: true },
+    // SENT = written BEFORE the request goes out and updated when it ends, so
+    // a request interrupted by a crash or lost connection is never invisible;
+    // INTERRUPTED = the server stopped before the answer arrived (it may still
+    // have been billed); NOT_SENT = it certainly never reached the provider.
+    status: { type: String, enum: ["SENT", "SUCCESS", "FAILED", "TIMEOUT", "INTERRUPTED", "NOT_SENT", "BLOCKED"], required: true },
     errorKind: { type: String, default: null },
+    errorStatus: { type: Number, default: null }, // provider HTTP status, when one came back
+    errorDetail: { type: String, default: null }, // provider error text, keys removed
+    runnerId: { type: String, default: null },
+    finishedAt: { type: Date, default: null },
     durationMs: { type: Number, default: null },
 
     // Cost estimate (application-side). UNKNOWN when usage is missing: such a

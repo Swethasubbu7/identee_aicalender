@@ -11,3 +11,6 @@ backend/src/storage/
 # Local browser-test accounts (scripts/e2eUsers.js)
 backend/.e2e-users.json
 backups/
+
+# AI usage results waiting to be written to the database (usageLedger.js)
+backend/logs/

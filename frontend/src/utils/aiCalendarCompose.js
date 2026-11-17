@@ -8,7 +8,7 @@ import { drawLayoutPreview, flattenOnWhite, loadImage, loadLayoutFonts } from ".
 import { layerRenderOptions, BARE_LAYER_VERSION } from "./layoutAssets";
 import { renderPageArea } from "./pdfRender";
 import { designFromRecipe } from "./designRecipes";
-import { loadFontPair } from "./fontSets";
+import { fontPairForStyle, loadFontPair } from "./fontSets";
 import { aiPaintsProductImage, effectiveOptions, usesAiArtwork } from "./composition";
 import {
   fetchAiCalendarSourcePdf,
@@ -26,6 +26,12 @@ const jobContent = (job) => ({
   productList: job.content.productList,
   address: job.content.address,
   rightBoxText: job.content.rightBoxText,
+  // Customise choices: left box as a picture, typography ("" = automatic).
+  leftBoxMode: job.options?.leftBoxMode === "image" ? "image" : "text",
+  fontStyle: job.options?.fontStyle || "",
+  textColour: job.options?.textColour || "",
+  textSizes: job.options?.textSizes || {},
+  godPlacement: job.options?.godPlacement || null,
 });
 
 // Sections actually shown: switched on AND given content (an empty section
@@ -46,9 +52,10 @@ const designOf = (job, variation) => {
 // picture (complete artwork, or the deity in the god opening).
 const savedDesign = (job, variation) => (job.mode === "normal" ? variation.variant?.design || null : null);
 // Normal Mode without a saved AI picture: the layout's own God picture.
+// A God image chosen in Customise (upload or library) replaces it.
 const usesLayoutGod = (job, variation) => {
   const saved = savedDesign(job, variation);
-  return job.mode === "normal" && !saved?.artwork && !saved?.godImage;
+  return job.mode === "normal" && !saved?.artwork && !saved?.godImage && !job.content?.godImage;
 };
 // The layout template is replaced by one complete AI artwork.
 const usesFullArtwork = (job, variation) => usesAiArtwork(variation) || Boolean(savedDesign(job, variation)?.artwork);
@@ -68,22 +75,87 @@ export const productImageUrl = (job, choice) =>
     ? job.content.productImageEnhancedUrl
     : job.content.productImageUrl;
 
+// AI design edited after generation (business name, left side, right side):
+// everything outside the edited areas is taken pixel-for-pixel from the
+// design as generated, and only each edited area from the drawing with its
+// edit. Other text picks its colour from what lies under it, so drawing the
+// whole design again could shift it slightly — this keeps it exact.
+// Size: a percent of the area's text size AS GENERATED (100 % = unchanged).
+const EDIT_AREA_REGIONS = {
+  name: (r) => r.binding === "businessName",
+  left: (r) => r.role === "SIDE_BOX_LEFT",
+  right: (r) => r.role === "SIDE_BOX_RIGHT",
+};
+export const drawWithEdits = (canvas, args) => {
+  const asGenerated = { ...args.content };
+  delete asGenerated.edits;
+  const original = drawLayoutPreview(canvas, { ...args, content: asGenerated });
+  const regions = args.variant.regions || [];
+  const areaEdits = {};
+  const copied = [];
+  for (const [area, edit] of Object.entries(args.content.edits || {})) {
+    if (!edit || !EDIT_AREA_REGIONS[area]) continue;
+    const areaRegions = regions.filter(EDIT_AREA_REGIONS[area]);
+    const generatedPt = areaRegions.map((r) => original.fits?.[r.id]?.fittedPt).find((pt) => pt > 0);
+    areaEdits[area] = {
+      ...(edit.text ? { text: edit.text } : {}),
+      ...(edit.colour ? { colour: edit.colour } : {}),
+      ...(edit.size && generatedPt ? { targetPt: (generatedPt * edit.size) / 100 } : {}),
+    };
+    copied.push(...areaRegions);
+  }
+  const edited = document.createElement("canvas");
+  const result = drawLayoutPreview(edited, { ...args, content: { ...asGenerated, areaEdits } });
+  // Exact pixel copy of each edited area (no re-rendering of anything else).
+  const ctx = canvas.getContext("2d");
+  const editedCtx = edited.getContext("2d");
+  for (const region of copied) {
+    const b = region.box;
+    const x = Math.max(0, Math.floor(b.x * args.pxPerMm));
+    const y = Math.max(0, Math.floor(b.y * args.pxPerMm));
+    const w = Math.min(canvas.width, Math.ceil((b.x + b.width) * args.pxPerMm)) - x;
+    const h = Math.min(canvas.height, Math.ceil((b.y + b.height) * args.pxPerMm)) - y;
+    if (w <= 0 || h <= 0) continue;
+    ctx.putImageData(editedCtx.getImageData(x, y, w, h), x, y);
+  }
+  // Text fits: the edited areas from the edited drawing, the rest as generated.
+  const fits = { ...original.fits };
+  for (const region of copied) if (result.fits?.[region.id]) fits[region.id] = result.fits[region.id];
+  return { ...result, fits };
+};
+
+/** The edits of an AI design: { name, left, right } (the first version kept the name's style apart). */
+export const editsOf = (job, variation) => {
+  if (job.mode !== "ai") return null;
+  const edits = { ...(variation.edits || {}) };
+  if (!edits.name && variation.nameStyle) edits.name = variation.nameStyle;
+  return Object.values(edits).some(Boolean) ? edits : null;
+};
+
 const compose = async (job, variation, { layers, pxPerMm, productChoice, godUrl, backgroundUrl }) => {
   const { variant } = variation;
   const design = designOf(job, variation);
-  const content = jobContent(job);
+  const content = {
+    ...jobContent(job),
+    // AI designs: the areas edited after generation (this design only;
+    // every other text keeps the job's own settings).
+    ...(editsOf(job, variation) ? { edits: editsOf(job, variation) } : {}),
+  };
   const saved = savedDesign(job, variation);
   await loadLayoutFonts(variant);
-  await loadFontPair(design.fonts, [content.businessName, content.productList, content.rightBoxText]);
+  await loadFontPair(fontPairForStyle(content.fontStyle) || design.fonts, [content.businessName, content.productList, content.rightBoxText]);
   // AI designs: the AI god picture (placed on the box it was composed for);
   // Normal Mode: none (the layout's own) or a saved layout's AI picture;
   // older previews: the customer's own god image, unchanged.
-  const aiGod = godUrl || variation.godImageUrl || saved?.godImageUrl;
-  const [godImage, background, productImage, artwork] = await Promise.all([
-    loadImage(aiGod || (job.mode === "normal" ? null : job.content.godImageUrl)).catch(() => null),
+  const customerGodInNormal = job.mode === "normal" && Boolean(job.content.godImageUrl);
+  const aiGod = customerGodInNormal ? null : godUrl || variation.godImageUrl || saved?.godImageUrl;
+  // Normal Mode: the customer's God image when one was chosen in Customise.
+  const [godImage, background, productImage, artwork, leftBoxImage] = await Promise.all([
+    loadImage(aiGod || job.content.godImageUrl || null).catch(() => null),
     loadImage(backgroundUrl || variation.backgroundUrl || saved?.artworkUrl).catch(() => null),
     loadImage(productImageUrl(job, productChoice)).catch(() => null),
     loadImage(variant.assets?.artworkOverride?.url).catch(() => null),
+    loadImage(content.leftBoxMode === "image" ? job.content.leftBoxImageUrl : null).catch(() => null),
   ]);
   // A complete AI artwork replaces the template artwork completely: only the
   // geometry (cutline, cake, text areas) comes from the layout.
@@ -91,7 +163,7 @@ const compose = async (job, variation, { layers, pxPerMm, productChoice, godUrl,
   const godBox = variation.godImageBox || saved?.godImageBox || null;
   const filled = variation.godImage ? variation.filledAreas || [] : saved?.filledAreas || [];
   const canvas = document.createElement("canvas");
-  const { fits } = drawLayoutPreview(canvas, {
+  const drawArgs = {
     variant,
     images: {
       ...(fullArtwork ? {} : layers),
@@ -110,13 +182,16 @@ const compose = async (job, variation, { layers, pxPerMm, productChoice, godUrl,
       background: fullArtwork ? null : background,
       backgroundBox: null,
       productImage,
+      leftBoxImage,
     },
     content,
     pxPerMm,
     showGuides: false,
     originals: false,
-    design,
-  });
+    // AI Mode: text colours chosen for the plaques the AI painted.
+    design: job.mode === "ai" ? { ...design, aiText: true } : design,
+  };
+  const { fits } = content.edits ? drawWithEdits(canvas, drawArgs) : drawLayoutPreview(canvas, drawArgs);
   flattenOnWhite(canvas);
   return { canvas, fits };
 };

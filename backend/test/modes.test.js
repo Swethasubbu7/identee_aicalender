@@ -121,17 +121,17 @@ test.beforeEach(() => {
 
 // ---- Normal Mode ------------------------------------------------------------
 
-test("Normal Mode: 5 box-style designs at once, no AI request, no God image", async () => {
+test("Normal Mode: one design, the layout exactly as designed, no AI request, God image optional", async () => {
   const r = await call(createJob, {
     user: designer,
-    body: { mode: "normal", variantId: selected._id, ...TAMIL, language: "tamil", godImage: "/uploads/design-content/g.png" },
+    body: { mode: "normal", variantId: selected._id, ...TAMIL, language: "tamil" },
   });
   assert.equal(r.status, 202);
   assert.equal(createdJob.mode, "normal");
   assert.equal(createdJob.status, "DONE");
-  assert.equal(createdJob.content.godImage, null, "no God image is taken in Normal Mode");
+  assert.equal(createdJob.content.godImage, null, "without one, the layout's own God picture is kept");
   assert.equal(createdJob.content.businessName, TAMIL.businessName, "Tamil text stored exactly");
-  assert.deepEqual(createdJob.variations.map((v) => v.recipe.boxStyle), ["layout", "rounded", "arched", "scalloped", "double"]);
+  assert.deepEqual(createdJob.variations.map((v) => v.recipe.boxStyle), ["layout"], "the layout's own boxes only");
   assert.ok(createdJob.variations.every((v) => v.status === "DONE" && v.recipe.theme === "original"));
   assert.equal(aiCalls, 0);
 });
@@ -178,11 +178,11 @@ test("AI Mode: a right image box without a photo is painted by the AI (not remov
   assert.equal(effectiveOptions(selected, opts, {}, { aiPaintsProduct: true }).showRightBox, true, "AI Mode: AI paints it");
 });
 
-test("plan: Normal 5 designs free, AI exactly 2 designs with an estimate", async () => {
+test("plan: Normal 1 design (the layout as designed) free, AI exactly 2 designs with an estimate", async () => {
   const r = await call(getLayoutPlan, { user: designer, query: { variantId: selected._id, prompt: "" } });
   assert.equal(r.status, 200);
   assert.equal(r.body.aiEnabled, false);
-  assert.equal(r.body.normal.designCount, 5);
+  assert.equal(r.body.normal.designCount, 1);
   assert.equal(r.body.ai.designCount, 2);
   assert.ok(r.body.ai.note.includes("AI is switched off"));
 });
@@ -203,15 +203,10 @@ test("layout access: every signed-in designer has the same full access (no admin
   assert.equal(canUseLayout({}, { status: "VALIDATED" }), false); // not signed in
 });
 
-test("a saved layout's box style comes first in its Normal Mode designs", () => {
-  assert.deepEqual(normalRecipes({ cutType: "die-cut", design: { boxStyle: "scalloped" } }).map((r) => r.boxStyle), [
-    "scalloped",
-    "layout",
-    "rounded",
-    "arched",
-    "double",
-  ]);
-  assert.equal(NORMAL_BOX_RECIPES.length, 5);
+test("Normal Mode keeps the layout as designed: its own boxes (a saved layout: its saved style)", () => {
+  assert.deepEqual(normalRecipes({ cutType: "die-cut" }).map((r) => r.boxStyle), ["layout"]);
+  assert.deepEqual(normalRecipes({ cutType: "die-cut", design: { boxStyle: "scalloped" } }).map((r) => r.boxStyle), ["scalloped"]);
+  assert.equal(NORMAL_BOX_RECIPES.length, 5); // styles still known for older saved layouts
 });
 
 // ---- save as reusable layout --------------------------------------------------
@@ -223,7 +218,7 @@ test.after(() => fs.rmSync(TMP, { recursive: true, force: true }));
 test("save a Normal Mode design: new DRAFT layout, geometry copied, source untouched", async () => {
   await call(createJob, { user: designer, body: { mode: "normal", variantId: selected._id, ...TAMIL } });
   const sourceBefore = JSON.stringify(selected.toObject());
-  const r = await call(saveAsLayout, { user: designer, params: { id: createdJob._id, index: "3" }, body: { name: "Murugan scalloped" } });
+  const r = await call(saveAsLayout, { user: designer, params: { id: createdJob._id, index: "0" }, body: { name: "Murugan layout" } });
   assert.equal(r.status, 201, JSON.stringify(r.body));
   assert.equal(savedVariant.status, "DRAFT");
   assert.notEqual(String(savedVariant.familyId), String(selected.familyId), "a new family, never the source");
@@ -236,8 +231,8 @@ test("save a Normal Mode design: new DRAFT layout, geometry copied, source untou
     selected.regions.map((g) => [g.role, g.box.x, g.box.y, g.box.width, g.box.height]),
   );
   assert.equal(savedVariant.design.mode, "normal");
-  assert.equal(savedVariant.design.boxStyle, "scalloped");
-  assert.equal(savedFamily.name, "Murugan scalloped");
+  assert.equal(savedVariant.design.boxStyle, "layout");
+  assert.equal(savedFamily.name, "Murugan layout");
   assert.ok(["PASS", "FAIL", "PENDING"].includes(savedVariant.validation.status));
   assert.equal(JSON.stringify(selected.toObject()), sourceBefore, "source layout unchanged");
 });
@@ -337,12 +332,23 @@ const withAiOnAndLimits = async (fn) => {
   }
 };
 const ledger = [];
-AiUsageRecord.create = async (doc) => ledger.push(doc);
+AiUsageRecord.create = async (doc) => ledger.push({ ...doc });
+AiUsageRecord.updateOne = async (q, upd) => {
+  const r = ledger.find((x) => x.requestId === q.requestId);
+  if (r) Object.assign(r, upd.$set);
+  return { modifiedCount: r ? 1 : 0 };
+};
 AiUsageRecord.aggregate = async () => [];
 AiUsageRecord.countDocuments = async () => 0;
 AiUsageRecord.find = () => ({ sort: () => ({ limit: () => ({ lean: async () => [] }) }), lean: async () => [] });
 AiCalendarJob.exists = async () => null;
 AiCalendarJob.updateOne = async () => ({});
+// Atomic claim of a QUEUED job.
+AiCalendarJob.findOneAndUpdate = async (q, upd) => {
+  if (!createdJob || (q.status && createdJob.status !== q.status)) return null;
+  createdJob.set(upd.$set || {});
+  return createdJob;
+};
 
 const GOD = "/uploads/design-content/test-modes-god.png";
 const aiBody = (extra = {}) => ({ mode: "ai", variantId: selected._id, godImage: GOD, prompt: "red and gold", ...TAMIL, ...extra });
@@ -435,4 +441,21 @@ test("an unknown AI_IMAGE_PROVIDER value means AI OFF (never an error, never a r
   } finally {
     console.warn = warn;
   }
+});
+
+// Customise Normal Mode now takes the customer's God image too (2026-11-16):
+// still free, never sent to any AI service.
+test("Normal Mode: the customer's God image is used, never sent to AI; an unknown file is refused", async () => {
+  aiOn = true;
+  const before = aiCalls;
+  selected = variantDoc();
+  const ok = await call(createJob, { user: designer, body: { mode: "normal", variantId: selected._id, ...TAMIL, godImage: GOD } });
+  assert.equal(ok.status, 202);
+  assert.equal(createdJob.content.godImage, GOD);
+  assert.equal(createdJob.status, "DONE");
+  const bad = await call(createJob, { user: designer, body: { mode: "normal", variantId: selected._id, ...TAMIL, godImage: "/uploads/design-content/missing.png" } });
+  assert.equal(bad.status, 400);
+  await new Promise((r) => setTimeout(r, 100));
+  assert.equal(aiCalls, before, "no AI request");
+  aiOn = false;
 });

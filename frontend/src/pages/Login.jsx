@@ -1,9 +1,12 @@
 import { useState } from "react";
 import axios from "axios";
 import { apiUrl } from "../config";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { safeNextPath } from "../utils/auth";
 import "../style/Login.css";
-import logo from "../assets/identeelogo.jpeg";
+import logo from "../assets/nauticrew-logo.png";
+import logoDark from "../assets/nauticrew-logo-dark.png";
+import { useColorMode } from "../colorMode";
 
 const Login = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -16,6 +19,10 @@ const Login = () => {
   const [otp, setOtp] = useState("");
 
   const navigate = useNavigate();
+  const { mode } = useColorMode();
+  // A page opened directly before signing in (?next=/drafts) is shown after it.
+  const [searchParams] = useSearchParams();
+  const afterSignIn = safeNextPath(searchParams.get("next"));
 
   // Login data
   const [loginData, setLoginData] = useState({
@@ -75,8 +82,8 @@ const Login = () => {
       // Save user
       localStorage.setItem("user", JSON.stringify(response.data.user));
 
-      // Go to dashboard
-      navigate("/dashboard");
+      // Go to the requested page (default: dashboard)
+      navigate(afterSignIn, { replace: true });
     } catch (error) {
       console.error("Login failed:", error);
 
@@ -152,8 +159,8 @@ const Login = () => {
 
       alert("Account created successfully! 🎉");
 
-      // Go to dashboard
-      navigate("/dashboard");
+      // Go to the requested page (default: dashboard)
+      navigate(afterSignIn, { replace: true });
     } catch (error) {
       console.error("OTP verification failed:", error);
 
@@ -184,12 +191,12 @@ const Login = () => {
         <div className="brand-section">
           <div className="brand-content">
             <div className="logo-wrapper">
-              <img src={logo} alt="IDENTEE" className="brand-logo" />
+              <img src={mode === "dark" ? logoDark : logo} alt="Nauticrew" className="brand-logo" />
             </div>
 
             <h1>
               Welcome to
-              <span> IDENTEE</span>
+              <span> NAUTICREW</span>
             </h1>
 
             <p>Your Style. Your Story. Your Identity.</p>
@@ -362,7 +369,7 @@ const Login = () => {
 
                       <h2>Create your account ✨</h2>
 
-                      <p>Join your IDENTEE workspace in a few steps.</p>
+                      <p>Join your Nauticrew workspace in a few steps.</p>
                     </div>
 
                     <form onSubmit={handleRegister}>

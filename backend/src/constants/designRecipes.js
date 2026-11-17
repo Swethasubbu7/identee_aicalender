@@ -71,11 +71,14 @@ const NORMAL_BOX_RECIPES = [
  * (a saved layout's own style first), one design for Special Die-Cut (it has
  * no side boxes: only its name and text lines are customised).
  */
+// Normal Mode keeps the layout EXACTLY as designed (owner rule 2026-11-16):
+// one design — the layout's own boxes, colours and fonts; only the God
+// image and the business details change. (A reusable layout saved from a
+// design keeps its saved box style, which is part of that layout.)
 const normalRecipes = (variant) => {
-  if (variant?.cutType === "special-die-cut") return [{ ...NORMAL_BOX_RECIPES[0], name: "Layout design" }];
   const saved = variant?.design?.boxStyle;
-  const first = NORMAL_BOX_RECIPES.find((r) => r.boxStyle === saved);
-  return first ? [first, ...NORMAL_BOX_RECIPES.filter((r) => r !== first)] : NORMAL_BOX_RECIPES;
+  const own = NORMAL_BOX_RECIPES.find((r) => r.boxStyle === saved) || NORMAL_BOX_RECIPES[0];
+  return [{ ...own, name: "Layout design" }];
 };
 
 // Colour words in the designer's prompt → the recipe whose theme matches.

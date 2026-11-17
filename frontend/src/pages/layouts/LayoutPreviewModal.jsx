@@ -51,7 +51,7 @@ const LayoutPreviewModal = ({
             objectFit: "contain",
             borderRadius: 1,
             mb: 2,
-            backgroundColor: "#FAF6EC",
+            backgroundColor: "var(--nc-bg)",
           }}
         />
         <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
@@ -62,7 +62,7 @@ const LayoutPreviewModal = ({
           />
           <Chip label={layout.size} size="small" variant="outlined" />
         </Box>
-        <Typography variant="body2" sx={{ color: "#7A7266" }}>
+        <Typography variant="body2" sx={{ color: "var(--nc-text-2)" }}>
           {layout.description || "No description available."}
         </Typography>
       </DialogContent>

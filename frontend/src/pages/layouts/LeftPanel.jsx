@@ -295,7 +295,7 @@ const LeftPanel = ({
               Calendar Template
             </Typography>
           </Box>
-          <LockOutlinedIcon fontSize="small" sx={{ color: "#736C5F" }} />
+          <LockOutlinedIcon fontSize="small" sx={{ color: "var(--nc-text-2)" }} />
         </Box>
 
         {hasCustomerImage && (
@@ -323,7 +323,7 @@ const LeftPanel = ({
                 ) : (
                   <VisibilityOffOutlinedIcon
                     fontSize="small"
-                    sx={{ color: "#736C5F" }}
+                    sx={{ color: "var(--nc-text-2)" }}
                   />
                 )}
               </IconButton>

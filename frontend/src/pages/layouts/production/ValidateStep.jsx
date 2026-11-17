@@ -13,6 +13,7 @@ import { generateLayoutAssets } from "../../../utils/layoutAssets";
 import { CUT_TYPE_LABELS } from "../../../constants/cutTypes";
 import CorrectionPanel from "./CorrectionPanel";
 import ArtworkPanel from "./ArtworkPanel";
+import { friendly } from "../../../utils/layoutCheckMessages";
 
 const STATUS_COLOR = { PASS: "success", FAIL: "error", PENDING: "warning", WARN: "warning" };
 
@@ -122,7 +123,7 @@ const ValidateStep = ({ variant, onChanged, onBackToMapping }) => {
       {busy && !result && <CircularProgress sx={{ alignSelf: "center", color: "#7d2ae8" }} />}
 
       {result && (
-        <Box sx={{ background: "#fff", borderRadius: 3, p: 3, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+        <Box sx={{ background: "var(--nc-paper)", borderRadius: 3, p: 3, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
             {ready ? <CheckCircleIcon sx={{ fontSize: 40, color: "#2e7d32" }} /> : <ErrorOutlineIcon sx={{ fontSize: 40, color: "#ef6c00" }} />}
             <Box sx={{ flexGrow: 1 }}>
@@ -182,7 +183,7 @@ const ValidateStep = ({ variant, onChanged, onBackToMapping }) => {
         </Button>
       </Box>
       {details && result && (
-        <Box sx={{ background: "#fff", borderRadius: 2, p: 2 }}>
+        <Box sx={{ background: "var(--nc-paper)", borderRadius: 2, p: 2 }}>
           <ResultList title="Layout checks" results={structure} />
           <Divider sx={{ my: 1 }} />
           <ResultList title="Printer checks" results={production} />
@@ -190,50 +191,6 @@ const ValidateStep = ({ variant, onChanged, onBackToMapping }) => {
       )}
     </Box>
   );
-};
-
-// Validation messages in plain words for the summary.
-const ROLE_WORDS = {
-  NAME_TEXT: "business name",
-  TEXT_LINE_1: "text line 1",
-  TEXT_LINE_2: "text line 2",
-  CALENDAR_AREA: "calendar pad",
-  CAKE_MOUNT: "calendar pad",
-  GOD_AREA: "god picture area",
-  FRAME: "frame",
-  SIDE_BOX_LEFT: "left box",
-  SIDE_BOX_RIGHT: "right box",
-};
-const friendly = (r) => {
-  switch (r.code) {
-    case "TRIM_SIZE":
-      return "The cut shape is slightly off the calendar size — fix it below.";
-    case "ARTWORK_RESOLUTION":
-      return "The image quality is too low for printing — improve it below.";
-    case "ARTWORK_REGION":
-      return "The background artwork is mapped to a small element — select the main artwork image (Set up → Background artwork).";
-    case "CUTLINE_PRESENT":
-      return "The cut shape is missing.";
-    case "CUTLINE_ALIGNMENT":
-      return "Confirm that the cut outline sits on the design's edge.";
-    case "LASER_MATCH":
-      return "The cutting file doesn't match the design.";
-    case "LASER_CAKE":
-      return "The calendar pad in the cutting file doesn't match the design.";
-    case "CAKE_MOUNT_SIZE":
-      return "The calendar pad isn't the right size for this calendar.";
-    case "CAKE_SIZE_CONFIRMED":
-      return "The calendar pad size for this calendar isn't confirmed yet.";
-    case "TEXT_STYLE":
-      return "Choose a font for the text (Advanced setup).";
-    case "REQUIRED_REGION": {
-      const role = /Missing (\w+) region/.exec(r.message)?.[1];
-      if (role && ROLE_WORDS[role]) return `Select the ${ROLE_WORDS[role]}.`;
-      return /artwork/i.test(r.message) ? "Select the background artwork." : r.message;
-    }
-    default:
-      return r.message;
-  }
 };
 
 export default ValidateStep;

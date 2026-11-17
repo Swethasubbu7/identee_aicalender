@@ -18,6 +18,9 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import { CUT_TYPE_LABELS } from "../../constants/cutTypes";
 import EditIcon from "@mui/icons-material/Edit";
+import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
+import { downloadLayoutFile } from "../../services/layoutService";
+import { downloadErrorMessage } from "../../utils/saveDownload";
 
 const TYPE_LABELS = CUT_TYPE_LABELS;
 
@@ -31,6 +34,22 @@ const LayoutCard = ({
   deleting,
 }) => {
   const [confirmOpen, setConfirmOpen] = useState(false);
+  // Download the uploaded layout file (unchanged).
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState("");
+  const canDownload = Boolean(layout.layoutFile || layout.previewImage);
+  const handleDownload = async (e) => {
+    e.stopPropagation();
+    setDownloading(true);
+    setDownloadError("");
+    try {
+      await downloadLayoutFile(layout._id);
+    } catch (err) {
+      setDownloadError(await downloadErrorMessage(err, "Download failed"));
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const handleDeleteClick = (e) => {
     e.stopPropagation();
@@ -58,7 +77,7 @@ const LayoutCard = ({
           display: "flex",
           flexDirection: "column",
           height: "100%",
-          background: "#FFFFFF",
+          background: "var(--nc-paper)",
           border: isSelected
             ? "1px solid #B08D35"
             : "1px solid rgba(176,141,53,0.15)",
@@ -115,7 +134,7 @@ const LayoutCard = ({
                 // top/bottom is ever set at a time.
                 ...(isSelected ? { bottom: 8, left: 8 } : { top: 8, left: 8 }),
                 background: "rgba(255,255,255,0.9)",
-                "&:hover": { background: "#FFFFFF" },
+                "&:hover": { background: "var(--nc-paper)" },
               }}
             >
               <EditIcon fontSize="small" sx={{ color: "#B08D35" }} />
@@ -137,7 +156,7 @@ const LayoutCard = ({
                 background: "rgba(255,255,255,0.92)",
                 border: "1px solid rgba(0,0,0,0.06)",
                 "&:hover": {
-                  background: "#FDECEA",
+                  background: "var(--nc-error-bg)",
                   borderColor: "rgba(192,57,43,0.4)",
                 },
               }}
@@ -156,7 +175,7 @@ const LayoutCard = ({
             variant="h6"
             component="h3"
             gutterBottom
-            sx={{ color: "#2A2620" }}
+            sx={{ color: "var(--nc-text)" }}
           >
             {layout.name}
           </Typography>
@@ -170,9 +189,12 @@ const LayoutCard = ({
             <Chip label={layout.size} size="small" variant="outlined" />
           </Box>
 
-          <Typography variant="body2" sx={{ color: "#7A7266" }}>
+          <Typography variant="body2" sx={{ color: "var(--nc-text-2)" }}>
             {layout.description || "No description available."}
           </Typography>
+          {downloadError && (
+            <Typography variant="caption" sx={{ color: "error.main", display: "block", mt: 0.5 }}>{downloadError}</Typography>
+          )}
         </CardContent>
 
         <CardActions sx={{ justifyContent: "space-between", px: 2, pb: 2 }}>
@@ -184,6 +206,18 @@ const LayoutCard = ({
           >
             Preview
           </Button>
+
+          {canDownload && (
+            <IconButton
+              size="small"
+              aria-label={`Download ${layout.name}`}
+              title="Download the uploaded layout file"
+              disabled={downloading}
+              onClick={handleDownload}
+            >
+              {downloading ? <CircularProgress size={16} /> : <FileDownloadOutlinedIcon fontSize="small" sx={{ color: "#B08D35" }} />}
+            </IconButton>
+          )}
 
           <Button
             size="small"
@@ -205,11 +239,11 @@ const LayoutCard = ({
         maxWidth="xs"
         fullWidth
       >
-        <DialogTitle sx={{ fontWeight: 700, color: "#2A2620" }}>
+        <DialogTitle sx={{ fontWeight: 700, color: "var(--nc-text)" }}>
           Remove Layout
         </DialogTitle>
         <DialogContent>
-          <Typography variant="body2" sx={{ color: "#7A7266" }}>
+          <Typography variant="body2" sx={{ color: "var(--nc-text-2)" }}>
             Remove <strong>&ldquo;{layout.name}&rdquo;</strong>? It will no
             longer appear in the layout list.
           </Typography>

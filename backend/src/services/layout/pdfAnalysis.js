@@ -13,7 +13,8 @@ const { shapeDistanceMm } = require("./pathGeometry");
 const { findCutlineCandidates, findRegistrationPair } = require("./mappingBuilder");
 
 const MM_PER_IN = 25.4;
-const GUIDE_LABEL = /\b\d+(\.\d+)?\s*[X×]\s*\d+(\.\d+)?\s*(INCH|INCHES|IN|CM|MM)\b|\b(CUT\s*LINE|CUTLINE|BLEED|TRIM|SAFE\s*AREA|DIE\s*LINE)\b/i;
+// Also sizes written with inch marks, e.g. 5"x4" on the cake rectangle.
+const GUIDE_LABEL = /\b\d+(\.\d+)?\s*[X×]\s*\d+(\.\d+)?\s*(INCH|INCHES|IN|CM|MM)\b|\b\d+(\.\d+)?\s*["”″]\s*[X×]\s*\d+(\.\d+)?\s*["”″]|\b(CUT\s*LINE|CUTLINE|BLEED|TRIM|SAFE\s*AREA|DIE\s*LINE)\b/i;
 const CUTLINE_TOLERANCE_MM = 5; // suggestion window; the validator uses the strict tolerance
 const CAKE_TOLERANCE_MM = 2;
 

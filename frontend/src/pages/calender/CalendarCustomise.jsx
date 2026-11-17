@@ -441,7 +441,7 @@ const CalendarCustomise = () => {
         flexDirection: "column",
         height: "100vh",
         overflow: "hidden",
-        background: "#FAF6EC",
+        background: "var(--nc-bg)",
       }}
     >
       {/* HEADER */}
@@ -572,11 +572,11 @@ const CalendarCustomise = () => {
             onClose={() => setSidebarOpen(false)}
           >
             <Box sx={{ width: 240 }}>
-              <AppSidebar activeKey="layouts" />
+              <AppSidebar />
             </Box>
           </Drawer>
         ) : (
-          <AppSidebar activeKey="layouts" />
+          <AppSidebar />
         )}
 
         {/* The old manual editing toolbar (Tools / Text / Images / Calendar /

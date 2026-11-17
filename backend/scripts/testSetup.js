@@ -5,6 +5,8 @@
 // over backend/.env. Tests that need AI "on" set their own fake values.
 process.env.AI_IMAGE_PROVIDER = "none";
 process.env.GEMINI_API_KEY = "";
+// Cost tests are written for this model, whatever model backend/.env uses.
+process.env.GEMINI_IMAGE_MODEL = "gemini-nano-banana-2.1";
 // Tests never write to the shared Atlas database: storage stays local
 // (GridFS is tested with an in-memory fake).
 process.env.STORAGE_DRIVER = "local";

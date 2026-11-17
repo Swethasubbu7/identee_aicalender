@@ -142,7 +142,7 @@ const TamilTypingField = ({ tamil = false, value = "", onChange, ...props }) => 
             </Box>
           )}
           {error && (
-            <Typography variant="caption" sx={{ color: "var(--mui-palette-error-main)", display: "block" }}>
+            <Typography variant="caption" sx={{ color: "#d32f2f", display: "block" }}>
               {error}
             </Typography>
           )}

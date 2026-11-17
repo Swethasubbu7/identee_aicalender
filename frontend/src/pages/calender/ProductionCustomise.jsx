@@ -6,7 +6,11 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogContent,
+  DialogTitle,
   FormControlLabel,
+  Slider,
   IconButton,
   Snackbar,
   Switch,
@@ -18,6 +22,9 @@ import {
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SaveOutlinedIcon from "@mui/icons-material/SaveOutlined";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import RemoveIcon from "@mui/icons-material/Remove";
+import AddIcon from "@mui/icons-material/Add";
+import CloseIcon from "@mui/icons-material/Close";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import AppSidebar from "../../components/AppSidebar";
 import { getLayoutVariant } from "../../services/layoutVariantService";
@@ -32,8 +39,11 @@ import { CUT_TYPE_LABELS } from "../../constants/cutTypes";
 import { getContentSlots, EMPTY_CONTENT, contentOptions } from "../../utils/contentSlots";
 import { designFromRecipe } from "../../utils/designRecipes";
 import { layoutSections, SECTION_LABELS } from "../../utils/sectionAreas";
-import { loadFontPair } from "../../utils/fontSets";
-import { drawLayoutPreview, flattenOnWhite, loadImage, loadLayoutFonts } from "../../utils/layoutPreview";
+import { fontPairForStyle, loadFontPair } from "../../utils/fontSets";
+import GodImagePanel from "../../components/GodImagePanel";
+import TypographyControls from "../../components/TypographyControls";
+import TextSizeControls from "../../components/TextSizeControls";
+import { drawLayoutPreview, flattenOnWhite, loadImage, loadLayoutFonts, GOD_SCALE_MIN, GOD_SCALE_MAX } from "../../utils/layoutPreview";
 import { startAiCalendarJob, startAdminTestImage, getAiLayoutPlan } from "../../services/aiCalendarService";
 import { generateLayoutAssets, BARE_LAYER_VERSION } from "../../utils/layoutAssets";
 import { SectionLabel, ImageSlot } from "./ContentFields";
@@ -42,7 +52,7 @@ import { aiPaintsProductImage, compositionMode, effectiveOptions } from "../../u
 
 // Designs per Generate (the server decides, see /plan): Normal Mode 5 box
 // styles (Special: 1), AI Mode exactly 2.
-const DESIGN_COUNT = { normal: 5, ai: 2 };
+const DESIGN_COUNT = { normal: 1, ai: 2 };
 const THUMBNAIL_HEIGHT_PX = 600;
 const PROMPT_EXAMPLE = "e.g. Create a premium red and gold Vinayagar calendar with a festive temple-inspired background.";
 
@@ -54,7 +64,9 @@ const toServerContent = (content) => ({
   productList: content.productList,
   address: content.address,
   godImage: content.godImage?.path || null,
+  godImageOriginal: content.godImageOriginal?.path || null,
   productImage: content.productImage?.path || null,
+  leftBoxImage: content.leftBoxImage?.path || null,
   rightBoxText: content.rightBoxText,
   showBusinessName: content.showBusinessName,
   showLeftBox: content.showLeftBox,
@@ -62,15 +74,32 @@ const toServerContent = (content) => ({
   showTextLine1: content.showTextLine1,
   showTextLine2: content.showTextLine2,
   rightBoxMode: content.rightBoxMode,
+  leftBoxMode: content.leftBoxMode,
+  fontStyle: content.fontStyle,
+  textColour: content.textColour,
+  textSizes: content.textSizes,
+  godPlacement: content.godPlacement,
 });
+
+// A God-library picture (stored once, shared by every design).
+const LIBRARY_PATH = "/uploads/design-content/library/";
+const imageRef = (stored, url) =>
+  stored ? { path: stored, url, ...(stored.startsWith(LIBRARY_PATH) && { fromLibrary: true }) } : null;
 
 const fromServerContent = (c = {}, language) => ({
   ...EMPTY_CONTENT,
   businessName: c.businessName || "",
   productList: c.productList || "",
   address: c.address || "",
-  godImage: c.godImage ? { path: c.godImage, url: c.godImageUrl } : null,
+  godImage: imageRef(c.godImage, c.godImageUrl),
+  godImageOriginal: imageRef(c.godImageOriginal, c.godImageOriginalUrl),
   productImage: c.productImage ? { path: c.productImage, url: c.productImageUrl } : null,
+  leftBoxImage: c.leftBoxImage ? { path: c.leftBoxImage, url: c.leftBoxImageUrl } : null,
+  leftBoxMode: c.leftBoxMode === "image" ? "image" : "text",
+  fontStyle: c.fontStyle || "",
+  textColour: c.textColour || "",
+  textSizes: c.textSizes || {},
+  godPlacement: c.godPlacement || null,
   rightBoxText: c.rightBoxText || "",
   language: language === "tamil" ? "tamil" : "english",
   showBusinessName: c.showBusinessName !== false,
@@ -106,12 +135,16 @@ const designFor = (variant, c, mode) => {
 
 
 // The pictures the live preview uses in each mode.
-//   Normal Mode: no customer God image — the layout's own God picture
+//   Normal Mode: the customer's God image when one was chosen (upload or
+//                library); otherwise the layout's own God picture
 //                (`original`, inside the god area), or a saved layout's AI
 //                picture (complete artwork / deity in the god opening).
 //   AI Mode:     the customer's God image.
 const previewImagesFor = (variant, images, content, mode) => {
   if (mode === "ai") return images;
+  if (content?.godImage) {
+    return { ...images, godImageBox: null, filledAreas: [], layoutGod: null, layoutGodBare: null };
+  }
   const saved = variant?.design;
   return {
     ...images,
@@ -144,6 +177,23 @@ const ProductionCustomiseEditor = () => {
   const [showGuides, setShowGuides] = useState(true);
   const [images, setImages] = useState({});
   const [fits, setFits] = useState({});
+  // God image on the preview: where it is ({ area, rect } in mm), the
+  // canvas's on-screen box, an active drag, and the chooser dialog.
+  const [godFrame, setGodFrame] = useState(null);
+  const [canvasBox, setCanvasBox] = useState(null);
+  const [godDrag, setGodDrag] = useState(null);
+  const [godHover, setGodHover] = useState(false);
+  const [godChooser, setGodChooser] = useState(false);
+  const previewRef = useRef(null);
+  // The canvas's place inside the preview box (for the click / drag overlay).
+  const measureCanvas = useCallback(() => {
+    const c = canvasRef.current;
+    const p = previewRef.current;
+    if (!c || !p) return;
+    const cr = c.getBoundingClientRect();
+    const pr = p.getBoundingClientRect();
+    setCanvasBox({ left: cr.left - pr.left, top: cr.top - pr.top, width: cr.width, height: cr.height });
+  }, []);
   const [prompt, setPrompt] = useState("");
   const [generating, setGenerating] = useState(false);
   const [layoutPlan, setLayoutPlan] = useState(null); // { aiEnabled, normal: {...}, ai: {...} }
@@ -192,7 +242,23 @@ const ProductionCustomiseEditor = () => {
           if (!cancelled) setSaveState("");
         }
         const draftId = searchParams.get("design");
-        const draft = draftId ? (await getDesign(draftId)).design : null;
+        // A draft deleted on the Drafts page (its generated designs are
+        // kept and still link here): start a fresh draft on this layout.
+        let draftDeleted = false;
+        const draft = draftId
+          ? await getDesign(draftId)
+              .then((r) => r.design)
+              .catch((err) => {
+                if (err.response?.status !== 404) throw err;
+                draftDeleted = true;
+                return null;
+              })
+          : null;
+        if (draftDeleted && !cancelled) {
+          setDesignId(null);
+          setSearchParams({}, { replace: true });
+          setSnackbar("That draft was deleted. You are starting a new draft on this layout.");
+        }
         await loadLayoutFonts(v);
         if (cancelled) return;
         variantRef.current = v;
@@ -270,19 +336,20 @@ const ProductionCustomiseEditor = () => {
   const plateGodBareUrl = variant?.assets?.plateGodBare || null;
   const godUrl = content.godImage?.url || null;
   const productUrl = content.productImage?.url || null;
+  const leftUrl = content.leftBoxImage?.url || null;
   // A reusable layout saved from an AI design: its saved AI picture.
   const savedArtUrl = variant?.design?.artworkUrl || null;
   const savedGodUrl = variant?.design?.godImageUrl || null;
   useEffect(() => {
     let cancelled = false;
     Promise.all(
-      [plateUrl, frameUrl, overlayUrl, originalUrl, godUrl, productUrl, plateBareUrl, overlayBareUrl, artworkUrl, savedArtUrl, savedGodUrl, plateGodUrl, plateGodBareUrl].map(
+      [plateUrl, frameUrl, overlayUrl, originalUrl, godUrl, productUrl, plateBareUrl, overlayBareUrl, artworkUrl, savedArtUrl, savedGodUrl, plateGodUrl, plateGodBareUrl, leftUrl].map(
         (u) => loadImage(u).catch(() => null),
       ),
-    ).then(([plate, frame, overlay, original, godImage, productImage, plateBare, overlayBare, artwork, savedArt, savedGod, plateGod, plateGodBare]) => {
+    ).then(([plate, frame, overlay, original, godImage, productImage, plateBare, overlayBare, artwork, savedArt, savedGod, plateGod, plateGodBare, leftBoxImage]) => {
       if (cancelled) return;
       imagesRef.current = {
-        plate, frame, overlay, original, godImage, productImage, plateBare, overlayBare, artwork, savedArt, savedGod, plateGod, plateGodBare,
+        plate, frame, overlay, original, godImage, productImage, plateBare, overlayBare, artwork, savedArt, savedGod, plateGod, plateGodBare, leftBoxImage,
       };
       setImages(imagesRef.current);
       if (needsThumbnailRef.current && plate) {
@@ -293,7 +360,7 @@ const ProductionCustomiseEditor = () => {
     return () => {
       cancelled = true;
     };
-  }, [plateUrl, frameUrl, overlayUrl, originalUrl, godUrl, productUrl, plateBareUrl, overlayBareUrl, artworkUrl, savedArtUrl, savedGodUrl, plateGodUrl, plateGodBareUrl, designId]);
+  }, [plateUrl, frameUrl, overlayUrl, originalUrl, godUrl, productUrl, plateBareUrl, overlayBareUrl, artworkUrl, savedArtUrl, savedGodUrl, plateGodUrl, plateGodBareUrl, leftUrl, designId]);
 
   // Redraw the live preview on every change.
   const pxPerMm = variant?.assets?.plateWidthPx && variant?.trim?.widthMm
@@ -306,13 +373,14 @@ const ProductionCustomiseEditor = () => {
   const [fontsReady, setFontsReady] = useState(0);
   useEffect(() => {
     let cancelled = false;
-    loadFontPair(liveDesign.fonts, [content.businessName, content.productList, content.rightBoxText]).then(
+    const pair = fontPairForStyle(content.fontStyle) || liveDesign.fonts;
+    loadFontPair(pair, [content.businessName, content.productList, content.rightBoxText]).then(
       () => !cancelled && setFontsReady((n) => n + 1),
     );
     return () => {
       cancelled = true;
     };
-  }, [liveDesign, content.businessName, content.productList, content.rightBoxText]);
+  }, [liveDesign, content.fontStyle, content.businessName, content.productList, content.rightBoxText]);
   useEffect(() => {
     if (!variant?.trim?.widthMm || !canvasRef.current) return;
     const frame = requestAnimationFrame(() => {
@@ -328,9 +396,68 @@ const ProductionCustomiseEditor = () => {
         originals: mode !== "ai",
       });
       setFits(result.fits);
+      setGodFrame(result.godFrame || null);
+      measureCanvas();
     });
     return () => cancelAnimationFrame(frame);
-  }, [variant, previewImages, content, pxPerMm, showGuides, liveDesign, fontsReady, mode]);
+  }, [variant, previewImages, content, pxPerMm, showGuides, liveDesign, fontsReady, mode, measureCanvas]);
+
+  // --- God image on the preview ----------------------------------------------
+  useEffect(() => {
+    const c = canvasRef.current;
+    if (!c || typeof ResizeObserver === "undefined") return undefined;
+    const observer = new ResizeObserver(measureCanvas);
+    observer.observe(c);
+    return () => observer.disconnect();
+  }, [measureCanvas, variant]);
+  const toMm = (evt) => {
+    const r = canvasRef.current.getBoundingClientRect();
+    return {
+      x: ((evt.clientX - r.left) / r.width) * variant.trim.widthMm,
+      y: ((evt.clientY - r.top) / r.height) * variant.trim.heightMm,
+    };
+  };
+  const inGodArea = (p) => {
+    const a = godFrame?.area;
+    return Boolean(a) && p.x >= a.x && p.x <= a.x + a.width && p.y >= a.y && p.y <= a.y + a.height;
+  };
+  const placement = { dx: 0, dy: 0, scale: 1, ...(content.godPlacement || {}) };
+  const setPlacement = (patch) => update({ godPlacement: { ...placement, ...patch } });
+  const onPreviewDown = (evt) => {
+    if (!variant?.trim || !godFrame) return;
+    const p = toMm(evt);
+    if (!inGodArea(p)) return;
+    if (!content.godImage) {
+      setGodChooser(true);
+      return;
+    }
+    evt.currentTarget.setPointerCapture?.(evt.pointerId);
+    setGodDrag({ start: p, from: placement });
+  };
+  const onPreviewMove = (evt) => {
+    if (!variant?.trim || !godFrame) return;
+    const p = toMm(evt);
+    if (!godDrag) {
+      setGodHover(inGodArea(p));
+      return;
+    }
+    const a = godFrame.area;
+    const clamp = (v) => Math.max(-1, Math.min(1, v));
+    setPlacement({
+      dx: Math.round(clamp(godDrag.from.dx + (p.x - godDrag.start.x) / a.width) * 1000) / 1000,
+      dy: Math.round(clamp(godDrag.from.dy + (p.y - godDrag.start.y) / a.height) * 1000) / 1000,
+    });
+  };
+  const onPreviewUp = () => setGodDrag(null);
+  const overlayRect = (b) =>
+    canvasBox && variant?.trim && b
+      ? {
+          left: canvasBox.left + (b.x / variant.trim.widthMm) * canvasBox.width,
+          top: canvasBox.top + (b.y / variant.trim.heightMm) * canvasBox.height,
+          width: (b.width / variant.trim.widthMm) * canvasBox.width,
+          height: (b.height / variant.trim.heightMm) * canvasBox.height,
+        }
+      : null;
 
   // --- saving ---------------------------------------------------------------
   const persist = useCallback(
@@ -367,10 +494,10 @@ const ProductionCustomiseEditor = () => {
     scheduleAutosave(next);
   };
 
-  const pickImage = async (key, file) => {
+  const pickImage = async (key, file, extra = {}) => {
     // Show it in the preview immediately; upload in the background.
     const localUrl = URL.createObjectURL(file);
-    update({ [key]: { url: localUrl, path: null } });
+    update({ [key]: { url: localUrl, path: null }, ...extra });
     setUploading((u) => ({ ...u, [key]: true }));
     try {
       const uploaded = await uploadDesignImage(file);
@@ -398,7 +525,7 @@ const ProductionCustomiseEditor = () => {
 
   // Generate designs of this same layout. The draft is saved first so
   // nothing is lost.
-  //   Normal Mode: 5 box-style designs (Special: 1), made by the app — free,
+  //   Normal Mode: 1 design — the layout exactly as designed, made by the app — free,
   //                never sent to an AI service.
   //   AI Mode:     exactly 2 AI designs; the server asks for the cost to be
   //                confirmed first and refuses while AI is switched off.
@@ -406,6 +533,7 @@ const ProductionCustomiseEditor = () => {
     const c = contentRef.current;
     const ai = modeRef.current === "ai";
     if (ai && !c.godImage?.path) return setSnackbar("Upload the god image first.");
+    if (c.godImage && !c.godImage.path) return setSnackbar("Wait for the God image to finish uploading.");
     if (generatingRef.current) return;
     generatingRef.current = true;
     setGenerating(true);
@@ -427,10 +555,15 @@ const ProductionCustomiseEditor = () => {
         businessName: c.businessName,
         productList: c.productList,
         address: c.address,
-        // Normal Mode never sends a God image (the layout's own is kept).
-        godImage: ai ? c.godImage.path : null,
+        // Normal Mode: optional (without one the layout's own God is kept).
+        godImage: c.godImage?.path || null,
         productImage: c.productImage?.path || null,
+        leftBoxImage: c.leftBoxMode === "image" ? c.leftBoxImage?.path || null : null,
         rightBoxText: c.rightBoxText,
+        fontStyle: c.fontStyle || "",
+        textColour: c.textColour || "",
+        textSizes: c.textSizes || {},
+        godPlacement: c.godPlacement || null,
         prompt: ai ? promptRef.current : "",
         ...contentOptions(c),
       };
@@ -479,8 +612,8 @@ const ProductionCustomiseEditor = () => {
       .find((f) => f && f.fittedPt < f.layoutPt - 0.5);
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", background: "#FAF6EC" }}>
-      <AppSidebar activeKey="layouts" />
+    <Box sx={{ display: "flex", minHeight: "100vh", background: "var(--nc-bg)" }}>
+      <AppSidebar />
       <Box sx={{ flexGrow: 1, minWidth: 0, display: "flex", flexDirection: "column", height: "100vh" }}>
         {/* Header */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 3, py: 1.5, background: "#161616", flexWrap: "wrap" }}>
@@ -532,7 +665,7 @@ const ProductionCustomiseEditor = () => {
         )}
         <Box sx={{ display: "flex", flexGrow: 1, minHeight: 0, flexDirection: { xs: "column", md: "row" } }}>
           {/* Content controls */}
-          <Box sx={{ width: { xs: "100%", md: 360 }, flexShrink: 0, overflowY: "auto", background: "#fff", borderRight: "1px solid rgba(176,141,53,0.15)", p: 2.5, display: "flex", flexDirection: "column", gap: 2.5 }}>
+          <Box sx={{ width: { xs: "100%", md: 360 }, flexShrink: 0, overflowY: "auto", background: "var(--nc-paper)", borderRight: "1px solid rgba(176,141,53,0.15)", p: 2.5, display: "flex", flexDirection: "column", gap: 2.5 }}>
             <Box>
               <SectionLabel>MODE</SectionLabel>
               <ToggleButtonGroup exclusive fullWidth size="small" value={mode} onChange={(_, v) => setMode(v)}>
@@ -541,11 +674,9 @@ const ProductionCustomiseEditor = () => {
                   <AutoAwesomeIcon sx={{ fontSize: 16, mr: 0.5 }} /> AI Mode
                 </ToggleButton>
               </ToggleButtonGroup>
-              <Typography variant="caption" sx={{ color: "#7A7266", display: "block", mt: 0.75 }}>
+              <Typography variant="caption" sx={{ color: "var(--nc-text-2)", display: "block", mt: 0.75 }}>
                 {mode === "normal"
-                  ? variant.cutType === "special-die-cut"
-                    ? "Free, no AI. The layout's artwork and God picture stay as they are; you change the business name and the two text lines."
-                    : "Free, no AI. The layout's artwork and God picture stay as they are; you change the text and boxes and choose from 5 box styles."
+                  ? "Free, no AI. The layout stays exactly as designed (artwork, flowers, colours, borders). Only the God image and the business details change."
                   : "Paid AI images. Upload the customer's God image and describe the design: the AI creates 2 complete new designs inside this layout's cut shape."}
               </Typography>
               {variant.design && (
@@ -568,7 +699,7 @@ const ProductionCustomiseEditor = () => {
                 <ToggleButton value="tamil">தமிழ் Tamil</ToggleButton>
               </ToggleButtonGroup>
               {content.language === "tamil" && (
-                <Typography variant="caption" sx={{ color: "#7A7266", display: "block", mt: 0.5 }}>
+                <Typography variant="caption" sx={{ color: "var(--nc-text-2)", display: "block", mt: 0.5 }}>
                   Type or paste the Tamil text yourself. It is printed exactly as entered (never translated) in Tamil fonts.
                 </Typography>
               )}
@@ -584,38 +715,121 @@ const ProductionCustomiseEditor = () => {
                   />
                 ))}
               </Box>
-              {sections.includes("showRightBox") && content.showRightBox !== false && (
-                <Box sx={{ mt: 1 }}>
-                  <Typography variant="caption" sx={{ color: "#7A7266", display: "block", mb: 0.5 }}>Right box shows</Typography>
-                  <ToggleButtonGroup
-                    exclusive
-                    size="small"
-                    value={content.rightBoxMode}
-                    onChange={(_, v) => v && update({ rightBoxMode: v })}
-                  >
-                    <ToggleButton value="image">Image</ToggleButton>
-                    <ToggleButton value="text">Text</ToggleButton>
-                  </ToggleButtonGroup>
-                </Box>
-              )}
             </Box>
             {slots.map((slot) => {
               // Sections the customer does not want are not shown at all.
               if (slot.section && content[slot.section] === false) return null;
-              // Normal Mode keeps the layout's own God picture: no upload.
-              if (slot.key === "godImage" && mode === "normal") return null;
-              if (slot.key === "productImage" && content.rightBoxMode === "text") {
+              // God image: upload, library search, quality check and free
+              // background removal / enhancement — in both modes. Special
+              // Die-Cut without a god area: only the AI composes a God image.
+              if (slot.key === "godImage") {
                 return (
-                  <Box key="rightBoxText">
-                    <SectionLabel>RIGHT BOX · TEXT</SectionLabel>
-                    <TextField
-                      fullWidth
-                      multiline
-                      minRows={3}
-                      value={content.rightBoxText}
-                      onChange={(e) => update({ rightBoxText: e.target.value })}
-                      slotProps={{ htmlInput: { maxLength: 1000 } }}
+                  <Box key="godImage">
+                    <SectionLabel>GOD IMAGE{mode === "normal" ? " (OPTIONAL)" : ""}</SectionLabel>
+                    <GodImagePanel
+                      slot={slot}
+                      variant={variant}
+                      value={content.godImage}
+                      original={content.godImageOriginal}
+                      uploading={uploading.godImage}
+                      onUpload={(file) => pickImage("godImage", file, { godImageOriginal: null })}
+                      onChange={(patch) => update(patch)}
+                      emptyHint={
+                        mode === "normal"
+                          ? "Leave empty to keep the layout's own God picture, or upload / pick one from the library."
+                          : "Needed for AI Mode: upload one or pick it from the library below."
+                      }
                     />
+                  </Box>
+                );
+              }
+              // Left side: text (the layout's left-box text slot) or a picture.
+              if (slot.key === "productList" && slot.regions.some((r) => r.role === "SIDE_BOX_LEFT")) {
+                const fit = reduced(slot.key);
+                return (
+                  <Box key="leftSide">
+                    <SectionLabel>LEFT SIDE</SectionLabel>
+                    <ToggleButtonGroup
+                      exclusive
+                      size="small"
+                      value={content.leftBoxMode}
+                      onChange={(_, v) => v && update({ leftBoxMode: v })}
+                      sx={{ mb: 1 }}
+                    >
+                      <ToggleButton value="text">Text</ToggleButton>
+                      <ToggleButton value="image">Image</ToggleButton>
+                    </ToggleButtonGroup>
+                    {content.leftBoxMode === "image" ? (
+                      <ImageSlot
+                        slot={{ label: "Left box image", button: "Upload Left Box Image" }}
+                        value={content.leftBoxImage}
+                        uploading={uploading.leftBoxImage}
+                        onPick={(file) => pickImage("leftBoxImage", file)}
+                        onRemove={() => update({ leftBoxImage: null })}
+                      />
+                    ) : (
+                      <>
+                        <TextField
+                          fullWidth
+                          multiline
+                          minRows={4}
+                          placeholder={slot.sample || "Left box text (optional)"}
+                          value={content.productList}
+                          onChange={(e) => update({ productList: e.target.value })}
+                          slotProps={{ htmlInput: { "aria-label": "Left side text" } }}
+                        />
+                        {fit && (
+                          <Typography variant="caption" sx={{ color: "var(--nc-gold-text)", display: "block", mt: 0.5 }}>
+                            Text reduced to {fit.fittedPt.toFixed(1)} pt (layout size {fit.layoutPt.toFixed(1)} pt) to fit its area.
+                          </Typography>
+                        )}
+                      </>
+                    )}
+                    <Typography variant="caption" sx={{ color: "var(--nc-text-3)", display: "block", mt: 0.5 }}>
+                      Optional: left empty, the box is removed.
+                    </Typography>
+                  </Box>
+                );
+              }
+              // Right side: a picture (product photo) or text.
+              if (slot.key === "productImage") {
+                return (
+                  <Box key="rightSide">
+                    <SectionLabel>RIGHT SIDE</SectionLabel>
+                    <ToggleButtonGroup
+                      exclusive
+                      size="small"
+                      value={content.rightBoxMode}
+                      onChange={(_, v) => v && update({ rightBoxMode: v })}
+                      sx={{ mb: 1 }}
+                    >
+                      <ToggleButton value="text">Text</ToggleButton>
+                      <ToggleButton value="image">Image</ToggleButton>
+                    </ToggleButtonGroup>
+                    {content.rightBoxMode === "text" ? (
+                      <TextField
+                        fullWidth
+                        multiline
+                        minRows={3}
+                        placeholder="Right box text (optional)"
+                        value={content.rightBoxText}
+                        onChange={(e) => update({ rightBoxText: e.target.value })}
+                        slotProps={{ htmlInput: { maxLength: 1000, "aria-label": "Right side text" } }}
+                      />
+                    ) : (
+                      <ImageSlot
+                        slot={{ label: "Right box image", button: "Upload Right Box Image" }}
+                        value={content.productImage}
+                        uploading={uploading.productImage}
+                        onPick={(file) => pickImage("productImage", file)}
+                        onRemove={() => update({ productImage: null })}
+                      />
+                    )}
+                    <Typography variant="caption" sx={{ color: "var(--nc-text-3)", display: "block", mt: 0.5 }}>
+                      {mode === "ai" && content.rightBoxMode === "image"
+                        ? "Optional: without a picture, the AI paints one of the products."
+                        : "Optional: left empty, the box is removed."}
+                    </Typography>
                   </Box>
                 );
               }
@@ -645,7 +859,7 @@ const ProductionCustomiseEditor = () => {
                       onChange={(e) => update({ [slot.key]: e.target.value })}
                     />
                     {fit && (
-                      <Typography variant="caption" sx={{ color: "#8a6d1f", display: "block", mt: 0.5 }}>
+                      <Typography variant="caption" sx={{ color: "var(--nc-gold-text)", display: "block", mt: 0.5 }}>
                         Text reduced to {fit.fittedPt.toFixed(1)} pt (layout size {fit.layoutPt.toFixed(1)} pt) to fit its area.
                       </Typography>
                     )}
@@ -655,6 +869,18 @@ const ProductionCustomiseEditor = () => {
               // AI background area: painted by the AI during Generate.
               return null;
             })}
+            <Box>
+              <SectionLabel>TEXT STYLE</SectionLabel>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                <TypographyControls
+                  language={content.language}
+                  fontStyle={content.fontStyle}
+                  textColour={content.textColour}
+                  onChange={(patch) => update(patch)}
+                />
+                <TextSizeControls variant={variant} values={content} onChange={(patch) => update(patch)} fits={fits} />
+              </Box>
+            </Box>
             {mode === "ai" && (
             <Box>
               <SectionLabel>AI PROMPT</SectionLabel>
@@ -692,12 +918,10 @@ const ProductionCustomiseEditor = () => {
                     ? `Generate ${layoutPlan?.ai?.designCount ?? DESIGN_COUNT.ai} AI designs`
                     : `Create ${layoutPlan?.normal?.designCount ?? DESIGN_COUNT.normal} design${(layoutPlan?.normal?.designCount ?? DESIGN_COUNT.normal) === 1 ? "" : "s"} (free, no AI)`}
               </Button>
-              <Typography variant="caption" sx={{ color: "#7A7266" }}>
+              <Typography variant="caption" sx={{ color: "var(--nc-text-2)" }}>
                 {mode === "ai"
                   ? `${layoutPlan?.ai?.designCount ?? DESIGN_COUNT.ai} different complete compositions of this layout (God image, frame, flowers, background); your text is printed by the app exactly as typed.`
-                  : variant.cutType === "special-die-cut"
-                    ? "This layout with your business name and text lines."
-                    : "Original boxes, rounded, arched, scalloped and double-border boxes — the same layout and text, drawn by the app."}
+                  : "This exact layout with your God image and business details."}
               </Typography>
               {mode === "ai" && layoutPlan?.adminTest && (
                 // One paid image to measure the real cost and quality before regular Generate.
@@ -717,7 +941,7 @@ const ProductionCustomiseEditor = () => {
               )}
               {mode === "ai" && layoutPlan?.ai?.note && <Alert severity="warning" sx={{ py: 0 }}>{layoutPlan.ai.note}</Alert>}
               {mode === "ai" && layoutPlan?.aiEnabled && (
-                <Typography variant="caption" sx={{ color: "#7A7266" }}>
+                <Typography variant="caption" sx={{ color: "var(--nc-text-2)" }}>
                   Estimated AI cost: {layoutPlan.ai.estimate?.totalInr == null ? "unknown" : `about ₹${layoutPlan.ai.estimate.totalInr}`}
                   {" "}({layoutPlan.ai.estimate?.requests} paid requests, incl. GST). You confirm before anything is sent.
                 </Typography>
@@ -743,7 +967,7 @@ const ProductionCustomiseEditor = () => {
           {/* Live preview */}
           <Box sx={{ flexGrow: 1, minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", p: 2 }}>
             <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
-              <Typography sx={{ fontWeight: 700, color: "#2A2620", flexGrow: 1 }}>Live Preview</Typography>
+              <Typography sx={{ fontWeight: 700, color: "var(--nc-text)", flexGrow: 1 }}>Live Preview</Typography>
               <FormControlLabel
                 control={<Switch size="small" checked={showGuides} onChange={(e) => setShowGuides(e.target.checked)} />}
                 label={<Typography variant="body2">Show fixed areas</Typography>}
@@ -751,15 +975,102 @@ const ProductionCustomiseEditor = () => {
             </Box>
             {!variant.assets?.plate && (
               <Alert severity="warning" sx={{ mb: 1 }}>
-                Preview assets for this layout have not been generated yet, so sample text may show through. Fix this in Layout setup with “Refresh preview”.
+                Preview assets for this layout have not been generated yet, so sample text may show through. Open the layout on the Layouts page and press “Save layout” to refresh it.
               </Alert>
             )}
-            <Box sx={{ flexGrow: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "#EDE7D9", borderRadius: 2, p: 2, overflow: "hidden" }}>
+            <Box
+              ref={previewRef}
+              sx={{ position: "relative", flexGrow: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--nc-well)", borderRadius: 2, p: 2, overflow: "hidden" }}
+            >
               <canvas
                 ref={canvasRef}
-                style={{ maxWidth: "100%", maxHeight: "100%", boxShadow: "0 6px 24px rgba(0,0,0,0.18)", background: "transparent" }}
+                data-testid="preview-canvas"
+                onPointerDown={onPreviewDown}
+                onPointerMove={onPreviewMove}
+                onPointerUp={onPreviewUp}
+                onPointerCancel={onPreviewUp}
+                onPointerLeave={() => !godDrag && setGodHover(false)}
+                style={{
+                  maxWidth: "100%",
+                  maxHeight: "100%",
+                  boxShadow: "0 6px 24px rgba(0,0,0,0.18)",
+                  background: "transparent",
+                  touchAction: godHover || godDrag ? "none" : "auto",
+                  cursor: godDrag ? "grabbing" : godHover ? (content.godImage ? "grab" : "pointer") : "default",
+                }}
               />
+              {/* God area: outlined on hover; a prompt to choose one when empty */}
+              {godFrame && overlayRect(godFrame.area) && (godHover || godDrag || !content.godImage) && (
+                <Box
+                  sx={{
+                    position: "absolute",
+                    ...overlayRect(godFrame.area),
+                    border: "2px dashed #E9C767",
+                    borderRadius: 1,
+                    pointerEvents: "none",
+                    display: "flex",
+                    alignItems: "flex-start",
+                    justifyContent: "center",
+                    boxShadow: "0 0 0 1px rgba(0,0,0,0.35)",
+                  }}
+                >
+                  <Box sx={{ mt: 1, px: 1, py: 0.25, borderRadius: 1, background: "rgba(22,22,22,0.85)", color: "#F5F1E6", fontSize: 12, fontWeight: 600 }}>
+                    {content.godImage ? "Drag to move the God image" : "Click to choose the God image"}
+                  </Box>
+                </Box>
+              )}
             </Box>
+            {content.godImage && godFrame && (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1, flexWrap: "wrap" }} data-testid="god-toolbar">
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>God image</Typography>
+                <IconButton size="small" aria-label="Smaller God image" onClick={() => setPlacement({ scale: Math.max(GOD_SCALE_MIN, Math.round((placement.scale - 0.05) * 100) / 100) })}>
+                  <RemoveIcon fontSize="small" />
+                </IconButton>
+                <Slider
+                  size="small"
+                  min={GOD_SCALE_MIN}
+                  max={GOD_SCALE_MAX}
+                  step={0.01}
+                  value={placement.scale}
+                  onChange={(_, v) => setPlacement({ scale: v })}
+                  aria-label="God image size"
+                  sx={{ width: 140 }}
+                />
+                <IconButton size="small" aria-label="Larger God image" onClick={() => setPlacement({ scale: Math.min(GOD_SCALE_MAX, Math.round((placement.scale + 0.05) * 100) / 100) })}>
+                  <AddIcon fontSize="small" />
+                </IconButton>
+                <Typography variant="caption" sx={{ width: 40 }}>{Math.round(placement.scale * 100)}%</Typography>
+                <Button size="small" onClick={() => update({ godPlacement: null })}>Reset position</Button>
+                <Button size="small" variant="outlined" onClick={() => setGodChooser(true)}>Change image</Button>
+                <Typography variant="caption" sx={{ color: "var(--nc-text-3)" }}>Drag the picture in the preview to move it.</Typography>
+              </Box>
+            )}
+            <Dialog open={godChooser} onClose={() => setGodChooser(false)} maxWidth="sm" fullWidth>
+              <DialogTitle sx={{ display: "flex", alignItems: "center" }}>
+                <Box sx={{ flexGrow: 1 }}>Choose the God image</Box>
+                <IconButton onClick={() => setGodChooser(false)} aria-label="Close">
+                  <CloseIcon />
+                </IconButton>
+              </DialogTitle>
+              <DialogContent>
+                <GodImagePanel
+                  slot={slots.find((x) => x.key === "godImage") || { key: "godImage", regions: [] }}
+                  variant={variant}
+                  value={content.godImage}
+                  original={content.godImageOriginal}
+                  uploading={uploading.godImage}
+                  onUpload={(file) => {
+                    pickImage("godImage", file, { godImageOriginal: null, godPlacement: null });
+                    setGodChooser(false);
+                  }}
+                  onChange={(patch) => {
+                    update(patch.godImage && patch.godImage.path !== content.godImage?.path ? { ...patch, godPlacement: null } : patch);
+                    if (patch.godImage) setGodChooser(false);
+                  }}
+                  emptyHint="Upload one, or search the saved God images below."
+                />
+              </DialogContent>
+            </Dialog>
           </Box>
         </Box>
       </Box>

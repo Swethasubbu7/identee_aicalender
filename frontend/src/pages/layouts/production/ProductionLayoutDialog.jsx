@@ -4,11 +4,12 @@ import CloseIcon from "@mui/icons-material/Close";
 import CheckIcon from "@mui/icons-material/Check";
 import UploadStep from "./UploadStep";
 import SetupStudio from "./SetupStudio";
-import MappingStep from "./MappingStep";
-import ValidateStep from "./ValidateStep";
 import { getLayoutVariant } from "../../../services/layoutVariantService";
 
-const STEPS = ["Upload", "Set up", "Check & publish"];
+// Two steps only: upload the Production PDF + Laser PDF (analysed
+// automatically), then review what was detected and save. The print checks
+// run automatically after saving, on the review screen.
+const STEPS = ["Upload PDFs", "Review & save"];
 const ACCENT = "#7d2ae8";
 
 // Add / edit a production layout without leaving the Layouts page.
@@ -17,23 +18,23 @@ const ACCENT = "#7d2ae8";
 const fetchVariant = (id) => getLayoutVariant(id).then((data) => data.variant);
 
 const ProductionLayoutDialog = ({ open, variantId, onClose, onChanged }) => {
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(variantId ? 1 : 0);
   const [variant, setVariant] = useState(null);
   const [loadingId, setLoadingId] = useState(variantId || null);
   const [error, setError] = useState("");
-  const [advanced, setAdvanced] = useState(false);
+  // A layout just uploaded is finished automatically (saved, checked, published).
+  const [justImported, setJustImported] = useState(false);
 
-  const applyLoaded = (loaded, nextStep) => {
-    setVariant(loaded);
-    setStep(nextStep ?? (loaded.mapping ? 2 : 1));
-  };
   const applyError = (err) => setError(err.response?.data?.message || "Could not load the layout.");
 
-  const loadVariant = (id, nextStep) => {
+  const loadVariant = (id) => {
     setLoadingId(id);
     setError("");
     fetchVariant(id)
-      .then((loaded) => applyLoaded(loaded, nextStep))
+      .then((loaded) => {
+        setVariant(loaded);
+        setStep(1);
+      })
       .catch(applyError)
       .finally(() => setLoadingId(null));
   };
@@ -42,7 +43,7 @@ const ProductionLayoutDialog = ({ open, variantId, onClose, onChanged }) => {
     if (!variantId) return;
     let cancelled = false;
     fetchVariant(variantId)
-      .then((loaded) => !cancelled && applyLoaded(loaded))
+      .then((loaded) => !cancelled && setVariant(loaded))
       .catch((err) => !cancelled && applyError(err))
       .finally(() => !cancelled && setLoadingId(null));
     return () => {
@@ -50,21 +51,20 @@ const ProductionLayoutDialog = ({ open, variantId, onClose, onChanged }) => {
     };
   }, [variantId]);
 
-  const handleImported = (id) => {
+  const handleImported = (id, { fresh = true } = {}) => {
+    setJustImported(fresh);
     onChanged?.();
-    loadVariant(id, 1);
+    loadVariant(id);
   };
-  const handleSaved = (saved, { stay = false } = {}) => {
+  const handleSaved = (saved) => {
     onChanged?.();
-    if (stay) setVariant(saved);
-    else loadVariant(saved._id, 2);
+    setVariant(saved);
   };
-  const canGo = (i) => variant && (i === 1 || (i === 2 && variant.mapping));
 
   return (
-    <Dialog open={open} onClose={onClose} fullScreen slotProps={{ paper: { sx: { background: "#f7f7f8" } } }}>
+    <Dialog open={open} onClose={onClose} fullScreen slotProps={{ paper: { sx: { background: "var(--nc-surface-2)" } } }}>
       {/* Top bar */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2, px: 2.5, py: 1.25, background: "#fff", borderBottom: "1px solid #ececec" }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2, px: 2.5, py: 1.25, background: "var(--nc-paper)", borderBottom: "1px solid var(--nc-border-neutral)", flexWrap: "wrap" }}>
         <Typography sx={{ fontWeight: 800, minWidth: 180 }} noWrap>
           {variant?.familyId?.name || variant?.familyId?.code || "New layout"}
         </Typography>
@@ -76,15 +76,14 @@ const ProductionLayoutDialog = ({ open, variantId, onClose, onChanged }) => {
               <Button
                 key={label}
                 size="small"
-                disabled={!canGo(i) || i === step}
-                onClick={() => setStep(i)}
+                disabled
                 startIcon={done ? <CheckIcon fontSize="small" /> : null}
                 sx={{
                   borderRadius: 5,
                   px: 2,
                   textTransform: "none",
                   fontWeight: 700,
-                  color: current ? "#fff !important" : done ? ACCENT : "text.secondary",
+                  color: current ? "#fff !important" : done ? `${ACCENT} !important` : "text.secondary",
                   background: current ? ACCENT : done ? "rgba(125,42,232,0.08)" : "transparent",
                 }}
               >
@@ -93,7 +92,7 @@ const ProductionLayoutDialog = ({ open, variantId, onClose, onChanged }) => {
             );
           })}
         </Box>
-        <IconButton onClick={onClose}>
+        <IconButton onClick={onClose} aria-label="Close">
           <CloseIcon />
         </IconButton>
       </Box>
@@ -101,29 +100,18 @@ const ProductionLayoutDialog = ({ open, variantId, onClose, onChanged }) => {
       <Box sx={{ flexGrow: 1, minHeight: 0, display: "flex", flexDirection: "column", p: step === 1 ? 1.5 : 3, overflow: step === 1 ? "hidden" : "auto" }}>
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
         {loadingId ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1.5, py: 8 }}>
             <CircularProgress sx={{ color: ACCENT }} />
+            <Typography variant="body2" sx={{ color: "text.secondary" }}>Analysing the layout…</Typography>
           </Box>
         ) : (
           <>
             {step === 0 && <UploadStep onImported={handleImported} />}
-            {step === 1 && variant && !advanced && (
+            {step === 1 && variant && (
               <Box sx={{ flexGrow: 1, minHeight: 0 }}>
-                <SetupStudio key={`${variant._id}-${variant.version}`} variant={variant} onSaved={handleSaved} onAdvanced={() => setAdvanced(true)} />
+                {/* Keyed by layout only: saving keeps this screen (and its check result). */}
+                <SetupStudio key={variant._id} variant={variant} onSaved={handleSaved} onChanged={onChanged} auto={justImported} />
               </Box>
-            )}
-            {step === 1 && variant && advanced && (
-              <Box sx={{ flexGrow: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-                <Button size="small" onClick={() => setAdvanced(false)} sx={{ alignSelf: "flex-start", textTransform: "none", mb: 1 }}>
-                  ← Back to simple setup
-                </Button>
-                <Box sx={{ flexGrow: 1, minHeight: 0 }}>
-                  <MappingStep key={`${variant._id}-${variant.version}`} variant={variant} onSaved={handleSaved} />
-                </Box>
-              </Box>
-            )}
-            {step === 2 && variant && (
-              <ValidateStep key={`${variant._id}-${variant.version}`} variant={variant} onChanged={onChanged} onBackToMapping={() => setStep(1)} />
             )}
           </>
         )}

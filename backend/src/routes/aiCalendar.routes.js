@@ -13,6 +13,8 @@ const {
   sourcePdf,
   exportPdf,
   downloadPdf,
+  setNameStyle,
+  setAreaEdit,
 } = require("../controllers/aiCalendar.controller");
 const { verifyToken } = require("../middleware/auth.middleware");
 const upload = require("../middleware/upload.middleware");
@@ -49,6 +51,8 @@ router.get("/:id/variations/:index/source.pdf", verifyToken, sourcePdf);
 router.post("/:id/variations/:index/export", verifyToken, artworkUpload, exportPdf);
 router.get("/:id/variations/:index/download/:kind", verifyToken, downloadPdf);
 router.put("/:id/variations/:index/preview", verifyToken, previewUpload, savePreview);
+router.put("/:id/variations/:index/name-style", verifyToken, setNameStyle);
+router.put("/:id/variations/:index/edits", verifyToken, setAreaEdit);
 router.post("/:id/variations/:index/save-layout", verifyToken, saveAsLayout);
 
 module.exports = router;

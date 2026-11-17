@@ -75,4 +75,46 @@ const textSizesOf = (value) => {
 };
 const textColourOf = (value) => (TEXT_COLOUR_KEYS.includes(value) ? value : "");
 
-module.exports = { FONT_STYLE_KEYS, TEXT_COLOUR_KEYS, TEXT_SIZE_KEYS, TEXT_SIZE_MIN, TEXT_SIZE_MAX, fontStyleOf, textColourOf, textSizesOf };
+// Where the designer placed the God image: offset as a share of its area
+// (-1…1) and size (0.3…3 ×). Defaults are left out.
+const godPlacementOf = (value) => {
+  const v = value && typeof value === "object" ? value : {};
+  const clamp = (n, lo, hi, def) => (Number.isFinite(Number(n)) ? Math.min(hi, Math.max(lo, Number(n))) : def);
+  const round = (n) => Math.round(n * 1000) / 1000;
+  return { dx: round(clamp(v.dx, -1, 1, 0)), dy: round(clamp(v.dy, -1, 1, 0)), scale: round(clamp(v.scale, 0.3, 3, 1)) };
+};
+
+// Business name edited after AI generation (one design only):
+// { size: percent of the name's size AS GENERATED, colour: "#RRGGBB" }.
+// The size is kept as chosen (100 % = as generated); no size / colour = as
+// generated; nothing set → null.
+const nameStyleOf = (value) => {
+  const out = {};
+  const size = Math.round(Number(value?.size));
+  if (value?.size != null && value.size !== "" && Number.isFinite(size)) out.size = Math.min(TEXT_SIZE_MAX, Math.max(TEXT_SIZE_MIN, size));
+  const colour = String(value?.colour || "").trim();
+  if (/^#[0-9a-f]{6}$/i.test(colour)) out.colour = colour.toUpperCase();
+  return Object.keys(out).length ? out : null;
+};
+
+// One area edited after AI generation (business name, left side, right
+// side): { text?, size?, colour? }. text: the area's own text (line breaks
+// kept, at most EDIT_TEXT_MAX characters; empty = as generated); size and
+// colour as in nameStyleOf. Nothing set → null (= as generated).
+const EDIT_AREAS = ["name", "left", "right"];
+const EDIT_TEXT_MAX = 300;
+const areaEditOf = (value) => {
+  const out = { ...(nameStyleOf(value) || {}) };
+  if (typeof value?.text === "string") {
+    const text = value.text.replace(/\r\n?/g, "\n").replace(/[\u0000-\u0009\u000B-\u001F\u007F]/g, "").trim().slice(0, EDIT_TEXT_MAX);
+    if (text) out.text = text;
+  }
+  return Object.keys(out).length ? out : null;
+};
+
+module.exports = {
+  EDIT_AREAS,
+  EDIT_TEXT_MAX,
+  areaEditOf,
+  nameStyleOf,
+  godPlacementOf, FONT_STYLE_KEYS, TEXT_COLOUR_KEYS, TEXT_SIZE_KEYS, TEXT_SIZE_MIN, TEXT_SIZE_MAX, fontStyleOf, textColourOf, textSizesOf };

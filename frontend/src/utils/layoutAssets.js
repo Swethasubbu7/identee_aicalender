@@ -58,6 +58,58 @@ export const textStylesFromRuns = (regions, runs) => {
   return styles;
 };
 
+/**
+ * The colour the sample text is REALLY drawn in, measured from the artwork:
+ * pixels that differ between the original render and the same render with
+ * the text removed (the plate) are the letters; their most common colour is
+ * the text colour. Works for plain, gradient, outlined and shape lettering —
+ * the band or box behind the text is never mistaken for it.
+ *   regions in layout mm; canvases cover the trim area at pxPerMm (page mm),
+ *   scale = size correction { x, y }.
+ * @returns { regionId: "#rrggbb" }
+ */
+export const measureTextColours = (regions, original, plate, pxPerMm, scale = { x: 1, y: 1 }) => {
+  const out = {};
+  if (!original || !plate) return out;
+  const W = Math.min(original.width, plate.width);
+  const H = Math.min(original.height, plate.height);
+  const og = original.getContext("2d", { willReadFrequently: true });
+  const pg = plate.getContext("2d", { willReadFrequently: true });
+  for (const region of regions) {
+    if (!region.textStyle) continue;
+    const b = region.textBox || region.box;
+    if (!b) continue;
+    const x = Math.max(0, Math.floor((b.x / scale.x) * pxPerMm));
+    const y = Math.max(0, Math.floor((b.y / scale.y) * pxPerMm));
+    const w = Math.min(W - x, Math.ceil((b.width / scale.x) * pxPerMm));
+    const h = Math.min(H - y, Math.ceil((b.height / scale.y) * pxPerMm));
+    if (w <= 0 || h <= 0) continue;
+    const o = og.getImageData(x, y, w, h).data;
+    const p = pg.getImageData(x, y, w, h).data;
+    const bins = new Map();
+    let count = 0;
+    for (let i = 0; i < o.length; i += 4) {
+      if (o[i + 3] < 200) continue;
+      const diff = Math.abs(o[i] - p[i]) + Math.abs(o[i + 1] - p[i + 1]) + Math.abs(o[i + 2] - p[i + 2]) + (p[i + 3] < 128 ? 255 : 0);
+      if (diff < 90) continue;
+      const key = ((o[i] >> 4) << 8) | ((o[i + 1] >> 4) << 4) | (o[i + 2] >> 4);
+      const e = bins.get(key) || { n: 0, r: 0, g: 0, b: 0 };
+      e.n += 1;
+      e.r += o[i];
+      e.g += o[i + 1];
+      e.b += o[i + 2];
+      bins.set(key, e);
+      count += 1;
+    }
+    if (count < 30) continue;
+    let best = null;
+    for (const e of bins.values()) if (!best || e.n > best.n) best = e;
+    const hex = (v) => Math.round(v / best.n).toString(16).padStart(2, "0");
+    out[region.id] = `#${hex(best.r)}${hex(best.g)}${hex(best.b)}`;
+  }
+  return out;
+};
+
 // Average colour of the canvas inside box (mm) — used for gradient lettering,
 // whose fill is revealed by a "glyphs" render (see renderPageArea).
 const averageColour = (canvas, box, pxPerMm) => {
@@ -202,14 +254,22 @@ export const generateLayoutAssets = async (variant) => {
     runs.map((r) => ({ ...r, xMm: r.xMm * scale.x, yMm: r.yMm * scale.y })),
   );
   // Text regions without a flat colour use gradient lettering: take the
-  // average of the gradient that fills them in the artwork.
-  const gradientRegions = (variant.regions || []).filter((r) => r.textStyle && !textStyles[r.id]);
+  // average of the gradient that fills them in the artwork. (Lettering drawn
+  // as shapes in one colour already has that colour from the mapping.)
+  const gradientRegions = (variant.regions || []).filter((r) => r.textStyle && !textStyles[r.id] && !r.textStyle.color);
   if (gradientRegions.length) {
     const { canvas: glyphless } = await renderPageArea(pdfUrl, pageIndex, box, 2, { withoutText: "glyphs" });
     for (const region of gradientRegions) {
       const colour = averageColour(glyphless, region.textBox || region.box, 2);
       if (colour) textStyles[region.id] = { color: colour, shadow: null };
     }
+  }
+
+  // The colour actually drawn in the artwork wins over the PDF's text
+  // colour (gradient / outlined lettering reports its outline or a pattern).
+  const measured = measureTextColours(variant.regions || [], originalCanvas, plateCanvas, platePx, scale);
+  for (const [id, color] of Object.entries(measured)) {
+    textStyles[id] = { color, shadow: textStyles[id]?.color === color ? textStyles[id].shadow : null };
   }
 
   const fd = new FormData();

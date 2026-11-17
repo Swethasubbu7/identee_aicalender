@@ -6,6 +6,7 @@ const {
   createLayout,
   updateLayout,
   deleteLayout,
+  downloadLayoutFile,
 } = require("../controllers/layout.controller");
 
 const { verifyToken } = require("../middleware/auth.middleware");
@@ -36,6 +37,7 @@ const handleUpload = (req, res, next) => {
 
 // Public — browsing layouts
 router.get("/", getLayouts);
+router.get("/:id/download", verifyToken, downloadLayoutFile);
 router.get("/:id", getLayoutById);
 
 // Protected — any signed-in designer
