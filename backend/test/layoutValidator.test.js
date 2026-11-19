@@ -91,10 +91,19 @@ test("a format with a pending cake size can never pass", () => {
   assert.ok(codes(r, "FAIL").includes("CAKE_SIZE_CONFIRMED"));
 });
 
-test("trim size must match the fixed calendar size", () => {
+test("trim size must match the fixed calendar size (Special Die-Cut: its own size within 15 mm is a WARN)", () => {
+  // Special Die-Cut (owner decision 2026-11-17): reported, printed at its own size.
   const v = specialVariant();
   v.trim = { widthMm: 300, heightMm: 457.2 };
+  assert.ok(codes(run(v), "WARN").includes("TRIM_SIZE"));
+  assert.ok(!codes(run(v), "FAIL").includes("TRIM_SIZE"));
+  // Beyond 15 mm: still a failure.
+  v.trim = { widthMm: 280, heightMm: 457.2 };
   assert.ok(codes(run(v), "FAIL").includes("TRIM_SIZE"));
+  // Die-Cut keeps the strict rule.
+  const d = { ...specialVariant(), cutType: "die-cut" };
+  d.trim = { widthMm: 300, heightMm: 457.2 };
+  assert.ok(codes(run(d, format("die-cut", "12x18")), "FAIL").includes("TRIM_SIZE"));
 });
 
 test("AI regions and locked regions are enforced by policy", () => {

@@ -18,7 +18,7 @@ const SHAPED_ROLES = new Set(["GOD_AREA", "CALENDAR_AREA", "BACKGROUND_AREA", "K
 const DEFAULT_FIT = { GOD_AREA: "cover", SIDE_BOX_RIGHT: "cover", FRAME: "contain" };
 const STYLE_OVERRIDE_KEYS = [
   "fontFamily", "minPt", "maxPt", "color", "strokeColor", "strokeWidthPt",
-  "align", "textCase", "maxLines", "horizontalScale",
+  "align", "textCase", "maxLines", "horizontalScale", "fontWeight",
 ];
 
 class MappingError extends Error {
@@ -330,6 +330,21 @@ function buildVariantGeometry(page, mapping, laserPage = null) {
       region.sampleText =
         [...new Set(texts.flatMap((t) => t.text.split("\n")).map((l) => l.trim()))].join("\n") || null;
       if (texts.length) region.textBox = offsetBox(unionBox(texts.map((t) => t.bbox)), ox, oy);
+      // A text area of its own (set on the layout, trim mm), e.g. a whole
+      // band for a longer address: replaces the area of the sample text.
+      // The objects still give the font, colour and what is erased.
+      if (spec.areaMm) {
+        const a = spec.areaMm;
+        const ok =
+          [a.x, a.y, a.width, a.height].every((v) => Number.isFinite(Number(v))) &&
+          a.width > 1 && a.height > 1 &&
+          a.x >= -3 && a.y >= -3 && a.x + a.width <= trim.widthMm + 3 && a.y + a.height <= trim.heightMm + 3;
+        if (!ok) throw new MappingError(`${spec.role}: its text area must lie on the calendar.`);
+        const box = { x: round2(Number(a.x)), y: round2(Number(a.y)), width: round2(Number(a.width)), height: round2(Number(a.height)) };
+        region.box = box;
+        region.textBox = box;
+        region.areaMm = box;
+      }
     }
 
     // Side boxes keep the look of their source rectangle (fill, border). If

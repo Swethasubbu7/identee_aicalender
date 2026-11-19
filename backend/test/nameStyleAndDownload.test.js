@@ -130,7 +130,7 @@ test("edits: the first version's name-style address still saves the business nam
   assert.deepEqual(updates[0].upd.$set["variations.0.edits.name"], { size: 130, colour: "#FFF4D6" });
 });
 
-test("edits: refused for Normal Mode, unfinished designs, picture boxes, missing areas and unknown areas", async () => {
+test("edits: refused for app-made previews, unfinished designs, picture boxes, switched-off lines, missing and unknown areas", async () => {
   const refused = async (j, body, status, regions) => {
     const { ctrl, updates } = loadController(j, regions);
     const res = fakeRes();
@@ -138,7 +138,8 @@ test("edits: refused for Normal Mode, unfinished designs, picture boxes, missing
     assert.equal(res.statusCode, status, JSON.stringify({ body, got: res.body }));
     assert.equal(updates.length, 0);
   };
-  await refused(job("normal"), { area: "name", size: 130 }, 409);
+  await refused(job("preview"), { area: "name", size: 130 }, 409);
+  await refused(job("ai", "DONE", { showTextLine1: false }), { area: "line1", text: "x" }, 409, [...REGIONS, { id: "t1", role: "TEXT_LINE_1", binding: "productList" }]);
   await refused(job("ai", "RUNNING"), { area: "name", size: 130 }, 400);
   await refused(job("ai", "DONE", { leftBoxMode: "image" }), { area: "left", text: "x" }, 409);
   await refused(job("ai", "DONE", { rightBoxMode: "image" }), { area: "right", text: "x" }, 409); // photo / AI-painted picture
@@ -262,5 +263,26 @@ test("layout download: preview-only layout gives its uploaded file, unchanged", 
     assert.match(res.headers["content-disposition"], /Grand-Ganesha-12x18\.png/);
   } finally {
     fs.rmSync(path.join(dir, name), { force: true });
+  }
+});
+
+test("edits: a font style per area is kept when it is a known style; unknown ones are ignored", async () => {
+  const { ctrl, updates } = loadController(job("ai"));
+  const res = fakeRes();
+  await ctrl.setAreaEdit(req({ area: "left", fontStyle: "playfair-lora", colour: "#7a1f1f" }), res);
+  assert.equal(res.statusCode, 200, JSON.stringify(res.body));
+  assert.deepEqual(updates[0].upd.$set["variations.0.edits.left"], { colour: "#7A1F1F", fontStyle: "playfair-lora" });
+  const { areaEditOf } = require(path.join(SRC, "constants/typography"));
+  assert.equal(areaEditOf({ fontStyle: "comic-sans-forever" }), null);
+});
+
+test("edits: Normal Mode designs can be edited in place too, including the text lines", async () => {
+  const regions = [...REGIONS, { id: "t1", role: "TEXT_LINE_1", binding: "productList" }, { id: "t2", role: "TEXT_LINE_2", binding: "address" }];
+  for (const area of ["name", "line1", "line2"]) {
+    const { ctrl, updates } = loadController(job("normal"), regions);
+    const res = fakeRes();
+    await ctrl.setAreaEdit(req({ area, size: 120, colour: "#016633" }), res);
+    assert.equal(res.statusCode, 200, JSON.stringify(res.body));
+    assert.deepEqual(updates[0].upd.$set[`variations.0.edits.${area}`], { size: 120, colour: "#016633" });
   }
 });

@@ -30,7 +30,8 @@ const textStyleSchema = new mongoose.Schema(
     strokeWidthPt: Number,
     align: { type: String, enum: ["left", "center", "right"], default: "center" },
     textCase: { type: String, enum: ["as-entered", "upper"], default: "as-entered" },
-    maxLines: Number,
+    maxLines: Number, // 2 on a single-line slot (e.g. the business name): shown on two lines
+    fontWeight: Number, // e.g. 700 = bold (set on the layout for readability)
     // Horizontal stretch from the source artwork (1 = none).
     horizontalScale: { type: Number, default: 1 },
     // Drop shadow / second copy found in the source artwork, if any.

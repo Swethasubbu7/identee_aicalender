@@ -107,6 +107,32 @@ const summariseImport = (extracted, format, laserData) => {
   return { pagesSummary, suggestedPageIndex: suggested.index, laser, verdict };
 };
 
+/**
+ * A layout whose setup was never saved (no mapping yet): its import analysis
+ * worked out again from the stored PDFs with the CURRENT rules, so drafts
+ * imported before a detection fix get it too. Read only — nothing is saved
+ * (the setup saves the mapping as usual). null = keep the stored analysis.
+ */
+const freshImportSummary = async (variant) => {
+  if (!variant || variant.mapping || !variant.assets?.importDataFile || !variant.formatId) return null;
+  try {
+    const data = await readImportData(variant);
+    const format = await CalendarFormat.findById(variant.formatId).lean();
+    if (!data?.pages?.length || !format) return null;
+    const fresh = summariseImport(data, format, await readLaserData(variant));
+    return {
+      ...(variant.importSummary || {}),
+      pages: fresh.pagesSummary,
+      suggestedPageIndex: fresh.suggestedPageIndex,
+      laser: fresh.laser || variant.importSummary?.laser || null,
+      verdict: fresh.verdict,
+    };
+  } catch (err) {
+    console.error("Fresh import analysis failed (stored one kept):", err.message);
+    return null;
+  }
+};
+
 const laserPageFor = (variant, laserData) => {
   if (!laserData) return null;
   const index = variant.importSummary?.laser?.pageIndex ?? variant.mapping?.pageIndex ?? 0;
@@ -471,12 +497,13 @@ const saveMapping = async (req, res) => {
       // Objects that must never print (guide labels such as "4X5 INCHES").
       excludedObjectIds: [...new Set(req.body.excludedObjectIds || [])],
       excludedBoxes: geometry.excludedBoxes,
-      regions: (req.body.regions || []).map(({ role, objectIds, binding, textStyle, fit }) => ({
+      regions: (req.body.regions || []).map(({ role, objectIds, binding, textStyle, fit, areaMm }) => ({
         role,
         objectIds,
         binding,
         textStyle,
         fit,
+        ...(areaMm && { areaMm }),
       })),
     };
     variant.version += 1;
@@ -884,7 +911,7 @@ const getEnhancePlan = async (req, res) => {
     const variant = await LayoutVariant.findById(req.params.id);
     if (!variant) return res.status(404).json({ message: "Layout variant not found" });
     const plan = await enhancePlan(variant);
-    if (!plan) return res.status(400).json({ message: "Map the background artwork first." });
+    if (!plan) return res.status(400).json({ message: "This layout has no background artwork mapped yet: select the background artwork in Layout setup and save first." });
     const withUrl = (o) => (o ? { ...o, url: toPublicUrl(o.path) } : null);
     res.status(200).json({
       plan,
@@ -910,7 +937,7 @@ const enhanceArtwork = async (req, res) => {
     const variant = await LayoutVariant.findById(req.params.id);
     if (!variant) return res.status(404).json({ message: "Layout variant not found" });
     const plan = await enhancePlan(variant);
-    if (!plan) return res.status(400).json({ message: "Map the background artwork first." });
+    if (!plan) return res.status(400).json({ message: "This layout has no background artwork mapped yet: select the background artwork in Layout setup and save first." });
     const src = await sourceArtworkOf(variant);
     if (!src) return res.status(400).json({ message: "The embedded artwork could not be read." });
     const { pixels, raster, object, sourcePath } = src;
@@ -1195,6 +1222,7 @@ const deleteVariant = async (req, res) => {
 };
 
 module.exports = {
+  freshImportSummary,
   detectLayoutFormat,
   importProductionPdf,
   getEnhancePlan,

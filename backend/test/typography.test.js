@@ -32,7 +32,9 @@ test("typography: font styles and text-size slots match the frontend lists", () 
   const { TEXT_SIZE_KEYS, TEXT_SIZE_MIN, TEXT_SIZE_MAX } = require("../src/constants/typography");
   const front = path.join(__dirname, "..", "..", "frontend", "src", "utils");
   const fontSets = fs.readFileSync(path.join(front, "fontSets.js"), "utf8");
-  const styles = fontSets.slice(fontSets.indexOf("export const FONT_STYLES"), fontSets.indexOf("export const TEXT_COLOURS"));
+  // The style list (BASE_FONT_STYLES, grouped into FONT_STYLES below it).
+  const start = fontSets.indexOf("const BASE_FONT_STYLES");
+  const styles = fontSets.slice(start >= 0 ? start : fontSets.indexOf("export const FONT_STYLES"), fontSets.indexOf("export const TEXT_COLOURS"));
   const keys = [...styles.matchAll(/\{ key: "([^"]+)"/g)].map((m) => m[1]);
   assert.deepEqual([...keys].sort(), [...FONT_STYLE_KEYS].sort());
   assert.equal(new Set(keys).size, keys.length);

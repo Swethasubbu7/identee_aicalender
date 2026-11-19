@@ -486,13 +486,16 @@ const listJobs = async (req, res) => {
 // content and the AI picture are never changed. Empty body fields = reset.
 // No AI request. The design's earlier PDFs no longer match: their links are
 // cleared (the files are kept).
-const AREA_ROLE = { left: "SIDE_BOX_LEFT", right: "SIDE_BOX_RIGHT" };
+const AREA_ROLE = { left: "SIDE_BOX_LEFT", right: "SIDE_BOX_RIGHT", line1: "TEXT_LINE_1", line2: "TEXT_LINE_2" };
+// Designs that can be edited in place after they are made (AI and Normal Mode;
+// old app-made previews / sketches cannot).
+const EDITABLE_MODES = ["ai", "normal"];
 const saveAreaEdit = async (req, res, area) => {
   try {
     const { job, index, variant } = await loadVariation(req, res);
     if (!job) return;
-    if (job.mode !== "ai") {
-      return res.status(409).json({ message: "Only AI designs can be edited after generation." });
+    if (!EDITABLE_MODES.includes(job.mode)) {
+      return res.status(409).json({ message: "This design cannot be edited here." });
     }
     if (!EDIT_AREAS.includes(area)) return res.status(400).json({ message: "Unknown area" });
     const options = job.options || {};
@@ -507,6 +510,9 @@ const saveAreaEdit = async (req, res, area) => {
     }
     if (area === "right" && (options.showRightBox === false || options.rightBoxMode !== "text")) {
       return res.status(409).json({ message: "The right side shows a picture or is switched off: it has no text to edit." });
+    }
+    if ((area === "line1" && options.showTextLine1 === false) || (area === "line2" && options.showTextLine2 === false)) {
+      return res.status(409).json({ message: "This text line is switched off." });
     }
     const value = areaEditOf(req.body);
     const v = `variations.${index}`;

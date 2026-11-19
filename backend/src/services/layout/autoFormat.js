@@ -9,19 +9,29 @@
 // Nothing is changed in either file: this only reads sizes.
 const MM_PER_IN = 25.4;
 const SIZE_TOLERANCE_MM = 5;
+const { SPECIAL_SHAPE_TOLERANCE_MM } = require("../../constants/calendar");
 
 const area = (b) => b.width * b.height;
 
-// Shoelace area of a path's points (curves approximated by their end points).
+// Area of a path's OUTER outline: the largest of its sub-paths. A die shape
+// often has many small inner cuts (holes) after the outer outline; joining
+// them all into one polygon made a shaped outline look rectangular
+// (spl cal -02, 2026-11-17).
 const polygonArea = (d) => {
   const nums = String(d || "").match(/-?\d*\.?\d+(?:e-?\d+)?/gi);
   if (!nums || nums.length < 6) return 0;
+  return Math.max(0, ...String(d).split(/(?=M)/i).map(subpathArea));
+};
+
+// Shoelace area of one sub-path's points (curves approximated by their end points).
+const subpathArea = (d) => {
   const pts = [];
   // Every command's last coordinate pair is an on-curve point.
   for (const seg of String(d).split(/(?=[MLCZ])/i)) {
     const n = seg.match(/-?\d*\.?\d+(?:e-?\d+)?/gi);
     if (n && n.length >= 2) pts.push([Number(n[n.length - 2]), Number(n[n.length - 1])]);
   }
+  if (pts.length < 3) return 0;
   let a = 0;
   for (let i = 0; i < pts.length; i++) {
     const [x1, y1] = pts[i];
@@ -60,9 +70,27 @@ const detectFormat = (laserData, formats) => {
   if (!cut) return { cutType: null, sizeCode: null, confident: false, reason: "No closed cutline was found in the laser PDF." };
   const trimMm = { width: Math.round(cut.bbox.width * 10) / 10, height: Math.round(cut.bbox.height * 10) / 10 };
   const near = (a, b) => Math.abs(a - b) <= SIZE_TOLERANCE_MM;
-  const matches = formats.filter(
+  let matches = formats.filter(
     (f) => near(f.widthIn * MM_PER_IN, cut.bbox.width) && near(f.heightIn * MM_PER_IN, cut.bbox.height),
   );
+  // No exact catalogue size: a shaped outline may still be a Special Die-Cut
+  // of its own size (within SPECIAL_SHAPE_TOLERANCE_MM per side) — offered,
+  // never assumed (the designer confirms).
+  const specialOnly = !matches.length && !isRectangular(cut);
+  if (specialOnly) {
+    matches = formats
+      .filter(
+        (f) =>
+          f.cutType === "special-die-cut" &&
+          Math.abs(f.widthIn * MM_PER_IN - cut.bbox.width) <= SPECIAL_SHAPE_TOLERANCE_MM &&
+          Math.abs(f.heightIn * MM_PER_IN - cut.bbox.height) <= SPECIAL_SHAPE_TOLERANCE_MM,
+      )
+      .sort(
+        (a, b) =>
+          Math.abs(a.widthIn * MM_PER_IN - cut.bbox.width) + Math.abs(a.heightIn * MM_PER_IN - cut.bbox.height) -
+          (Math.abs(b.widthIn * MM_PER_IN - cut.bbox.width) + Math.abs(b.heightIn * MM_PER_IN - cut.bbox.height)),
+      );
+  }
   const sizeLabel = `${(cut.bbox.width / MM_PER_IN).toFixed(1)}″ × ${(cut.bbox.height / MM_PER_IN).toFixed(1)}″`;
   if (!matches.length) {
     return {
@@ -74,6 +102,19 @@ const detectFormat = (laserData, formats) => {
     };
   }
   const rectangular = isRectangular(cut);
+  if (specialOnly) {
+    const pick = matches[0];
+    return {
+      cutType: pick.cutType,
+      sizeCode: pick.sizeCode,
+      confident: false,
+      trimMm,
+      rectangular,
+      sizeLabel,
+      alternatives: matches.slice(1).map((f) => ({ cutType: f.cutType, sizeCode: f.sizeCode })),
+      reason: `Shaped cutline of ${sizeLabel}: a Special Die-Cut ${pick.sizeCode} of its own size? Confirm the size.`,
+    };
+  }
   const has = (type) => matches.find((f) => f.cutType === type);
   let pick;
   let confident;

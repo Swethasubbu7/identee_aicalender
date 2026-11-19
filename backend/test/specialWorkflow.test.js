@@ -159,7 +159,9 @@ test("mapping: the suggestion saves; the size mismatch is reported, never silent
   assert.equal(stored.laserCheck.cutlineDeviationMm, 0);
   const r = validateLayoutVariant(stored.toObject(), { format: FORMAT, profile: null, toleranceMm: 2 });
   const fails = r.results.filter((x) => x.stage === "STRUCTURE" && x.status === "FAIL").map((x) => x.code);
-  assert.deepEqual(fails.sort(), ["ARTWORK_RESOLUTION", "TRIM_SIZE"]);
+  assert.deepEqual(fails.sort(), ["ARTWORK_RESOLUTION"]);
+  // A Special shape of its own size is reported (owner decision 2026-11-17), not failed and not changed.
+  assert.equal(r.results.find((x) => x.code === "TRIM_SIZE").status, "WARN");
 });
 
 // ---- 2. size correction -----------------------------------------------------------------

@@ -16,6 +16,9 @@ const MM_PER_IN = 25.4;
 // Also sizes written with inch marks, e.g. 5"x4" on the cake rectangle.
 const GUIDE_LABEL = /\b\d+(\.\d+)?\s*[X×]\s*\d+(\.\d+)?\s*(INCH|INCHES|IN|CM|MM)\b|\b\d+(\.\d+)?\s*["”″]\s*[X×]\s*\d+(\.\d+)?\s*["”″]|\b(CUT\s*LINE|CUTLINE|BLEED|TRIM|SAFE\s*AREA|DIE\s*LINE)\b/i;
 const CUTLINE_TOLERANCE_MM = 5; // suggestion window; the validator uses the strict tolerance
+const { SPECIAL_SHAPE_TOLERANCE_MM } = require("../../constants/calendar");
+// Special Die-Cut shapes may differ from the catalogue size (see constants).
+const sizeToleranceFor = (format) => (format?.cutType === "special-die-cut" ? SPECIAL_SHAPE_TOLERANCE_MM : CUTLINE_TOLERANCE_MM);
 const CAKE_TOLERANCE_MM = 2;
 
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -49,7 +52,7 @@ const cakeCandidates = (objects, cake) => {
 };
 
 /** Open stroked paths that together span the calendar size: a cutline drawn in pieces. */
-const pieceCandidates = (objects, w, h) => {
+const pieceCandidates = (objects, w, h, tol = CUTLINE_TOLERANCE_MM) => {
   const open = objects.filter((o) => isPaintedPath(o) && !o.closed && o.path && (o.paint === "stroke" || o.paint === "fillStroke"));
   if (open.length < 2 || open.length > 200) return [];
   // Group by stroke colour + width (a cutline is drawn with one pen).
@@ -61,7 +64,7 @@ const pieceCandidates = (objects, w, h) => {
   }
   for (const g of groups.values()) {
     const box = unionBox(g.map((o) => o.bbox));
-    if (g.length >= 2 && near(box.width, w, CUTLINE_TOLERANCE_MM) && near(box.height, h, CUTLINE_TOLERANCE_MM)) {
+    if (g.length >= 2 && near(box.width, w, tol) && near(box.height, h, tol)) {
       return g.map((o) => o.id);
     }
   }
@@ -76,24 +79,30 @@ const analysePage = (page, format) => {
   const objects = page.objects || [];
   const w = format.widthIn * MM_PER_IN;
   const h = format.heightIn * MM_PER_IN;
-  const painted = objects.filter((o) => o.type !== "path" || o.paint !== "clip");
+  // Objects lying entirely OUTSIDE the page are on the designer's pasteboard
+  // (e.g. a copy of the cut outline and cake placed beside the artwork): they
+  // are not part of the artwork, not a cake on it and not an outline to pick.
+  const pageBox = { x: 0, y: 0, width: page.widthMm, height: page.heightMm };
+  const onPage = (o) => !(page.widthMm > 0 && page.heightMm > 0) || overlaps(o.bbox, pageBox);
+  const painted = objects.filter((o) => (o.type !== "path" || o.paint !== "clip") && onPage(o));
   const images = objects.filter((o) => o.type === "image");
   const texts = objects.filter((o) => o.type === "text");
   const vectors = objects.filter(isPaintedPath);
 
-  const cutlineIds = findCutlineCandidates(page, w, h, CUTLINE_TOLERANCE_MM);
+  const tol = sizeToleranceFor(format);
+  const cutlineIds = findCutlineCandidates(page, w, h, tol);
   // Closed outlines close to the calendar size but outside the suggestion
   // window: shown so the admin can pick one (the validator then reports the
   // real size difference — it is never adjusted).
   const nearMisses = cutlineIds.length
     ? []
     : objects
-        .filter((o) => isPaintedPath(o) && o.closed && o.path && near(o.bbox.width, w, 30) && near(o.bbox.height, h, 30))
+        .filter((o) => isPaintedPath(o) && o.closed && o.path && onPage(o) && near(o.bbox.width, w, 30) && near(o.bbox.height, h, 30))
         .map((o) => ({ id: o.id, sizeMm: `${r1(o.bbox.width)}×${r1(o.bbox.height)}` }));
-  const pieces = cutlineIds.length ? [] : pieceCandidates(objects, w, h);
+  const pieces = cutlineIds.length ? [] : pieceCandidates(objects, w, h, tol);
   // A clipping outline of calendar size (artwork clipped to the die shape).
   const clipIds = objects
-    .filter((o) => o.type === "path" && o.paint === "clip" && o.closed && o.path && near(o.bbox.width, w, CUTLINE_TOLERANCE_MM) && near(o.bbox.height, h, CUTLINE_TOLERANCE_MM))
+    .filter((o) => o.type === "path" && o.paint === "clip" && o.closed && o.path && near(o.bbox.width, w, tol) && near(o.bbox.height, h, tol))
     .map((o) => o.id);
   const registration = cutlineIds[0] ? findRegistrationPair(page, cutlineIds[0]) : null;
 
@@ -103,7 +112,7 @@ const analysePage = (page, format) => {
   const artworkBounds = unionBox(artObjects.map((o) => o.bbox));
   const bigImage = images.slice().sort((a, b) => area(b.bbox) - area(a.bbox))[0] || null;
   const coverage = bigImage && artworkBounds ? area(bigImage.bbox) / area(artworkBounds) : 0;
-  const vectorArt = vectors.filter((o) => !cutSet.has(o.id) && (o.bbox.width > 5 || o.bbox.height > 5));
+  const vectorArt = vectors.filter((o) => onPage(o) && !cutSet.has(o.id) && (o.bbox.width > 5 || o.bbox.height > 5));
   const liveTextCount = texts.filter((t) => !GUIDE_LABEL.test(t.text)).length;
   // One raster carries (almost) the whole artwork.
   const artworkFlattened = Boolean(bigImage) && coverage >= 0.85 && vectorArt.length <= 25;
@@ -124,7 +133,7 @@ const analysePage = (page, format) => {
       dpi: Math.round(Math.min(o.imageWidthPx / (o.bbox.width / MM_PER_IN), o.imageHeightPx / (o.bbox.height / MM_PER_IN))),
     }));
 
-  const cakes = cakeCandidates(objects, format.cake);
+  const cakes = cakeCandidates(objects.filter(onPage), format.cake);
   const cakesOnArt = artworkBounds ? cakes.filter((c) => overlaps(objects.find((o) => o.id === c.id).bbox, artworkBounds)) : cakes;
   const guideLabels = texts.filter((t) => GUIDE_LABEL.test(t.text)).map((t) => ({ id: t.id, text: t.text.slice(0, 40) }));
   const liveText = texts.filter((t) => !GUIDE_LABEL.test(t.text));
@@ -189,11 +198,12 @@ const analyseLaserPage = (page, format) => {
   const w = format.widthIn * MM_PER_IN;
   const h = format.heightIn * MM_PER_IN;
   const closed = (page.objects || []).filter((o) => isPaintedPath(o) && o.closed && o.path);
-  const sized = findCutlineCandidates(page, w, h, CUTLINE_TOLERANCE_MM);
+  const tol = sizeToleranceFor(format);
+  const sized = findCutlineCandidates(page, w, h, tol);
   const cut = sized.length
     ? closed.find((o) => o.id === sized[0])
     : closed.sort((a, b) => area(b.bbox) - area(a.bbox))[0] || null;
-  const pieces = cut ? [] : pieceCandidates(page.objects || [], w, h);
+  const pieces = cut ? [] : pieceCandidates(page.objects || [], w, h, tol);
   const cakes = cakeCandidates(page.objects || [], format.cake);
   const texts = (page.objects || []).filter((o) => o.type === "text");
   return {
@@ -201,7 +211,7 @@ const analyseLaserPage = (page, format) => {
     sizeMm: { width: page.widthMm, height: page.heightMm },
     cutline: cut ? { id: cut.id, bbox: cut.bbox, path: cut.path, segments: cut.segments } : null,
     cutlinePieces: pieces,
-    cutlineSizeOk: Boolean(cut && near(cut.bbox.width, w, CUTLINE_TOLERANCE_MM) && near(cut.bbox.height, h, CUTLINE_TOLERANCE_MM)),
+    cutlineSizeOk: Boolean(cut && near(cut.bbox.width, w, tol) && near(cut.bbox.height, h, tol)),
     cake: cakes[0] ? { id: cakes[0].id, orientation: cakes[0].orientation, bbox: page.objects.find((o) => o.id === cakes[0].id).bbox } : null,
     text: texts.map((t) => t.text.slice(0, 40)),
   };

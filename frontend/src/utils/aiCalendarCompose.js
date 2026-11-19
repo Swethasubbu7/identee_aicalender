@@ -85,6 +85,8 @@ const EDIT_AREA_REGIONS = {
   name: (r) => r.binding === "businessName",
   left: (r) => r.role === "SIDE_BOX_LEFT",
   right: (r) => r.role === "SIDE_BOX_RIGHT",
+  line1: (r) => r.role === "TEXT_LINE_1",
+  line2: (r) => r.role === "TEXT_LINE_2",
 };
 export const drawWithEdits = (canvas, args) => {
   const asGenerated = { ...args.content };
@@ -97,7 +99,12 @@ export const drawWithEdits = (canvas, args) => {
     if (!edit || !EDIT_AREA_REGIONS[area]) continue;
     const areaRegions = regions.filter(EDIT_AREA_REGIONS[area]);
     const generatedPt = areaRegions.map((r) => original.fits?.[r.id]?.fittedPt).find((pt) => pt > 0);
+    // The area's own font: the style's heading font for the name, its text
+    // font for the side boxes (as Customise uses them).
+    const pair = edit.fontStyle ? fontPairForStyle(edit.fontStyle) : null;
+    // name: the style's heading font; boxes and text lines: its text font.
     areaEdits[area] = {
+      ...(pair ? { font: area === "name" ? pair.heading : pair.body } : {}),
       ...(edit.text ? { text: edit.text } : {}),
       ...(edit.colour ? { colour: edit.colour } : {}),
       ...(edit.size && generatedPt ? { targetPt: (generatedPt * edit.size) / 100 } : {}),
@@ -126,7 +133,8 @@ export const drawWithEdits = (canvas, args) => {
 
 /** The edits of an AI design: { name, left, right } (the first version kept the name's style apart). */
 export const editsOf = (job, variation) => {
-  if (job.mode !== "ai") return null;
+  // AI and Normal Mode designs can be edited after they are made.
+  if (job.mode !== "ai" && job.mode !== "normal") return null;
   const edits = { ...(variation.edits || {}) };
   if (!edits.name && variation.nameStyle) edits.name = variation.nameStyle;
   return Object.values(edits).some(Boolean) ? edits : null;
@@ -144,6 +152,10 @@ const compose = async (job, variation, { layers, pxPerMm, productChoice, godUrl,
   const saved = savedDesign(job, variation);
   await loadLayoutFonts(variant);
   await loadFontPair(fontPairForStyle(content.fontStyle) || design.fonts, [content.businessName, content.productList, content.rightBoxText]);
+  // Fonts chosen for single areas after generation (AI designs).
+  for (const edit of Object.values(content.edits || {})) {
+    if (edit?.fontStyle) await loadFontPair(fontPairForStyle(edit.fontStyle), [edit.text || content.businessName, content.productList, content.rightBoxText]);
+  }
   // AI designs: the AI god picture (placed on the box it was composed for);
   // Normal Mode: none (the layout's own) or a saved layout's AI picture;
   // older previews: the customer's own god image, unchanged.

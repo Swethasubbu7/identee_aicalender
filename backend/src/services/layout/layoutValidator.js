@@ -11,6 +11,7 @@ const {
   CAKE_STATUS,
   ROLE_POLICY,
   TEXT_ROLES,
+  specialShapeFits,
 } = require("../../constants/calendar");
 const { inToMm, effectiveDpi } = require("../../lib/units");
 const config = require("../../config");
@@ -75,6 +76,10 @@ function validateStructure(variant, format, toleranceMm, add) {
     Math.abs(trim.heightMm - expectH) <= toleranceMm
   ) {
     add(S, "TRIM_SIZE", "PASS", `Trim ${trim.widthMm.toFixed(1)}×${trim.heightMm.toFixed(1)} mm.`);
+  } else if (isNum(trim.widthMm) && isNum(trim.heightMm) && specialShapeFits(variant.cutType, trim, format)) {
+    // Special Die-Cut: the die shape has its own size (printed and cut at it).
+    add(S, "TRIM_SIZE", "WARN",
+      `Special shape ${trim.widthMm.toFixed(1)}×${trim.heightMm.toFixed(1)} mm (catalogue ${expectW.toFixed(1)}×${expectH.toFixed(1)} mm): printed and cut at its own size.`);
   } else {
     add(S, "TRIM_SIZE", "FAIL",
       `Trim ${trim.widthMm}×${trim.heightMm} mm does not match ${expectW.toFixed(1)}×${expectH.toFixed(1)} mm.`);

@@ -1,11 +1,11 @@
 // AI designs, after generation: edit ONE area of one design — its text, size
 // and colour. Only that area changes; the AI picture, the layout and every
 // other area stay exactly as generated (the app draws each area on its own).
-import { useRef, useState } from "react";
-import { Box, Button, IconButton, Slider, TextField, Tooltip, Typography } from "@mui/material";
+import { useEffect, useRef, useState } from "react";
+import { Box, Button, IconButton, ListSubheader, MenuItem, Slider, TextField, Tooltip, Typography } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
-import { TEXT_COLOURS } from "../utils/fontSets";
+import { FONT_STYLES, STYLE_FONT_PAIRS, TEXT_COLOURS, requestStyleFonts } from "../utils/fontSets";
 import { TEXT_SIZE_MAX, TEXT_SIZE_MIN, TEXT_SIZE_STEP } from "../utils/textSizes";
 
 export const EDIT_TEXT_MAX = 300; // backend constants/typography.js
@@ -29,6 +29,7 @@ const swatchSx = (selected, background) => ({
 const clean = (edit, originalText) => {
   const next = { ...(edit || {}) };
   if (!next.colour) delete next.colour;
+  if (!next.fontStyle) delete next.fontStyle;
   if (next.size == null) delete next.size;
   if (next.text == null || !String(next.text).trim() || next.text === originalText) delete next.text;
   return Object.keys(next).length ? next : null;
@@ -38,13 +39,32 @@ const clean = (edit, originalText) => {
  * label:        "Business name" | "Left side" | "Right side"
  * originalText: the area's text as generated
  * multiline:    box text (line breaks allowed)
- * value:        the saved edit { text?, size?, colour? } (null = as generated)
+ * value:        the saved edit { text?, size?, colour?, fontStyle? } (null = as generated)
+ * fontRole:     "heading" (business name) or "body" (box text): which font of a style is used
+ * language:     "tamil" lists the Tamil font styles
  * capped:       the text already fills its own area
  * onChange:     (edit | null) => void
  */
-const DesignAreaEditor = ({ label, originalText = "", multiline = false, value, capped = false, saving = false, error = "", onChange }) => {
+const DesignAreaEditor = ({
+  label,
+  originalText = "",
+  multiline = false,
+  value,
+  capped = false,
+  saving = false,
+  error = "",
+  fontRole = "body",
+  language = "english",
+  onChange,
+}) => {
   const size = value?.size ?? 100;
   const colour = value?.colour || "";
+  const tamil = language === "tamil";
+  const styles = FONT_STYLES.filter((f) => Boolean(f.tamil) === tamil);
+  const fontStyle = styles.some((f) => f.key === value?.fontStyle) ? value.fontStyle : "";
+  // The menu shows every style in the font this area would use.
+  useEffect(() => requestStyleFonts(styles.map((f) => f.key)), [tamil]); // eslint-disable-line react-hooks/exhaustive-deps
+  const sample = (originalText || label).split(/\n/)[0].slice(0, 28);
   const [draft, setDraft] = useState(value?.text ?? originalText);
   const typing = useRef(null);
   const set = (patch) => onChange(clean({ ...(value || {}), ...patch }, originalText));
@@ -110,6 +130,47 @@ const DesignAreaEditor = ({ label, originalText = "", multiline = false, value, 
           Max size for this area — the text already fills it (it never grows over other parts).
         </Typography>
       )}
+
+      <TextField
+        select
+        size="small"
+        fullWidth
+        label="Font"
+        value={fontStyle}
+        onChange={(e) => set({ fontStyle: e.target.value })}
+        sx={{ mt: 1.5 }}
+        slotProps={{
+          inputLabel: { shrink: true },
+          select: { displayEmpty: true, MenuProps: { slotProps: { paper: { sx: { maxHeight: 360 } } } } },
+        }}
+      >
+        <MenuItem value="">
+          <em>As generated</em>
+        </MenuItem>
+        {styles.flatMap((f, i) => {
+          const font = STYLE_FONT_PAIRS[f.key]?.[fontRole] || STYLE_FONT_PAIRS[f.key]?.heading;
+          const heading =
+            f.group && f.group !== styles[i - 1]?.group
+              ? [
+                  <ListSubheader key={`group-${f.group}`} sx={{ lineHeight: "30px", fontWeight: 700, color: "var(--nc-gold-text)" }}>
+                    {f.group}
+                  </ListSubheader>,
+                ]
+              : [];
+          return [
+            ...heading,
+            <MenuItem key={f.key} value={f.key} sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+              <Box
+                component="span"
+                sx={{ fontFamily: `"${font.family}"`, fontWeight: font.weight, fontStyle: font.style || "normal", fontSize: 18, lineHeight: 1.25 }}
+              >
+                {sample}
+              </Box>
+              <Typography variant="caption" sx={{ color: "text.secondary" }}>{f.label}</Typography>
+            </MenuItem>,
+          ];
+        })}
+      </TextField>
 
       <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mt: 1.5, mb: 0.75 }}>Colour</Typography>
       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, alignItems: "center" }} role="radiogroup" aria-label={`${label} colour`}>
