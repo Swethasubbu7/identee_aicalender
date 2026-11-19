@@ -29,6 +29,9 @@ const corsOptions = {
   },
   // Content-Disposition is exposed so downloads keep their file names.
   exposedHeaders: ["Content-Disposition"],
+  // Phase 2: sign-in cookies travel with the app's API requests.
+  credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization", "X-NC-Request"],
 };
 
 /**

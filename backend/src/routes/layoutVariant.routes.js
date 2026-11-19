@@ -30,10 +30,13 @@ const {
   reextractVariant,
 } = require("../controllers/productionLayout.controller");
 const { verifyToken } = require("../middleware/auth.middleware");
+const { requirePermission } = require("../core/authenticate");
+const { P } = require("../core/roles");
 const upload = require("../middleware/upload.middleware");
 
 const router = express.Router();
-const signedIn = [verifyToken];
+// Layout import, mapping, validation and activation: layout managers only.
+const signedIn = [verifyToken, requirePermission(P.CAL_LAYOUTS_MANAGE)];
 
 // Wrap multer so upload errors return clean JSON (same pattern as layouts).
 const withUpload = (middleware) => (req, res, next) =>
@@ -95,7 +98,7 @@ router.post("/:id/assets", ...signedIn, assetUpload, uploadVariantAssets);
 router.post("/:id/deactivate", ...signedIn, deactivateVariant);
 router.post("/:id/reextract", ...signedIn, reextractVariant);
 
-router.get("/:id/download/:kind", verifyToken, downloadVariantFile);
+router.get("/:id/download/:kind", verifyToken, requirePermission(P.CAL_PRODUCTION_FILES), downloadVariantFile);
 router.get("/:id", verifyToken, getVariant);
 router.put("/:id", ...signedIn, updateVariant);
 router.post("/:id/validate", ...signedIn, validateVariant);

@@ -24,7 +24,7 @@ const GeneratedDesignCard = ({ job, variation, onOpen }) => {
   const creator = job.createdBy?.isMe ? "You" : job.createdBy?.name || "Unknown";
   return (
     <Box
-      onClick={() => onOpen(`/calendar/designs/${job._id}`)}
+      onClick={() => onOpen(`/calendar/staff/designs/${job._id}`)}
       sx={{
         background: "var(--nc-paper)",
         border: "1px solid rgba(176,141,53,0.15)",

@@ -17,6 +17,11 @@ const aiCalendarRoutes = require("./routes/aiCalendar.routes");
 const aiUsageRoutes = require("./routes/aiUsage.routes");
 const filesRoutes = require("./routes/files.routes");
 const godImageRoutes = require("./routes/godImage.routes");
+const { makeAuthRouter } = require("./routes/portalAuth.routes");
+const staffRoutes = require("./routes/staff.routes");
+const { notificationsRouter, auditRouter } = require("./routes/platform.routes");
+const { AUDIENCE_NAMES } = require("./core/audiences");
+const { requireAppHeader } = require("./core/authenticate");
 const { recoverInterruptedJobs, startInterruptedSweep } = require("./services/ai/calendarJobRunner");
 
 // A stray rejected promise (e.g. a database call during a network drop) is
@@ -38,7 +43,18 @@ app.use(securityHeaders);
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// Auth Routes
+// Cookie-authenticated writes must come from the Nauticrew app (CSRF guard).
+app.use(requireAppHeader);
+
+// Phase 2: one sign-in per audience — /api/auth/shop-customer, /shop-staff,
+// /calendar-customer, /calendar-staff (login, refresh, logout, me, …).
+for (const audience of AUDIENCE_NAMES) app.use(`/api/auth/${audience}`, makeAuthRouter(audience));
+// Shared platform APIs: staff management, notifications, audit log.
+app.use("/api/staff", staffRoutes);
+app.use("/api/notifications", notificationsRouter);
+app.use("/api/audit", auditRouter);
+
+// Pre-Phase-2 Calendar Tool sign-in (Bearer token), calendar staff only.
 app.use("/api/auth", authRoutes);
 app.use("/api/auth", registerRoutes);
 

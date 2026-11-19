@@ -273,7 +273,13 @@ test("toPublicUrl: shared images get signed /api/files links; layouts unchanged"
 const startFilesServer = async (t, users) => {
   const User = require("../src/models/User");
   const savedFind = User.findById;
-  User.findById = (id) => ({ select: () => ({ lean: async () => users[id] || null }) });
+  // Staff records as stored (role defaults to STAFF). Supports both
+  // findById(id).select().lean() and `await findById(id)` (Phase 2 sign-in check).
+  const record = (id) => (users[id] ? { _id: id, role: "STAFF", ...users[id] } : null);
+  User.findById = (id) => ({
+    select: () => ({ lean: async () => record(id) }),
+    then: (resolve, reject) => Promise.resolve(record(id)).then(resolve, reject),
+  });
   const { clearActiveCache } = require("../src/controllers/files.controller");
   clearActiveCache();
   const app = express();

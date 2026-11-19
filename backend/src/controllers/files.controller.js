@@ -6,7 +6,7 @@
 // unexpired link issued by the API to a signed-in user (?u=&e=&s=).
 // Authorisation: the user must exist and be active. Generated designs are
 // shared by the whole team, so every active team member may view them.
-const jwt = require("jsonwebtoken");
+const { authenticateRequest } = require("../core/authenticate");
 const User = require("../models/User");
 const { getStorage, normalizeKey, isSharedKey, toStoredPath } = require("../services/storage");
 const { verifyFileLink } = require("../lib/fileLinks");
@@ -24,15 +24,15 @@ const isActiveUser = async (userId) => {
 };
 
 // { userId, maxAgeSec } of the caller, or { status, message } to refuse.
-const authenticate = (req, key) => {
+// Signed-in calendar staff (cookie or Bearer, Phase 2 audience check) or a
+// signed link issued to them.
+const authenticate = async (req, key) => {
   const header = req.headers.authorization || "";
-  if (header.startsWith("Bearer ")) {
-    try {
-      const decoded = jwt.verify(header.slice(7), process.env.JWT_SECRET);
-      return { userId: String(decoded.userId), maxAgeSec: 300 };
-    } catch {
-      return { status: 401, message: "Invalid or expired token" };
-    }
+  const hasStaffCookie = /(^|;\s*)nc_cs_at=/.test(String(req.headers.cookie || ""));
+  if (header.startsWith("Bearer ") || (hasStaffCookie && !req.query.s)) {
+    const result = await authenticateRequest(req, "calendar-staff");
+    if (result.error) return { status: result.error.status, message: result.error.message };
+    return { userId: result.principal.id, maxAgeSec: 300 };
   }
   const { u, e, s } = req.query;
   if (!s) return { status: 401, message: "Sign in to view this file" };
@@ -53,7 +53,7 @@ const serveFile = async (req, res) => {
   }
   if (!isSharedKey(key)) return res.status(404).json({ message: "File not found" });
 
-  const auth = authenticate(req, key);
+  const auth = await authenticate(req, key);
   if (auth.status) return res.status(auth.status).json({ message: auth.message });
   if (!(await isActiveUser(auth.userId))) {
     return res.status(403).json({ message: "Your account is not allowed to view design files" });

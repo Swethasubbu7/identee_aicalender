@@ -10,6 +10,8 @@ const {
 } = require("../controllers/layout.controller");
 
 const { verifyToken } = require("../middleware/auth.middleware");
+const { requirePermission } = require("../core/authenticate");
+const { P } = require("../core/roles");
 const upload = require("../middleware/upload.middleware");
 
 const router = express.Router();
@@ -36,12 +38,13 @@ const handleUpload = (req, res, next) => {
 };
 
 // Public — browsing layouts
-router.get("/", getLayouts);
-router.get("/:id/download", verifyToken, downloadLayoutFile);
-router.get("/:id", getLayoutById);
+// Legacy preview layouts: calendar staff only (were public before Phase 2).
+router.get("/", verifyToken, getLayouts);
+router.get("/:id/download", verifyToken, requirePermission(P.CAL_PRODUCTION_FILES), downloadLayoutFile);
+router.get("/:id", verifyToken, getLayoutById);
 
 // Protected — any signed-in designer
-const signedIn = [verifyToken];
+const signedIn = [verifyToken, requirePermission(P.CAL_LAYOUTS_MANAGE)];
 router.post("/", ...signedIn, handleUpload, createLayout);
 router.put("/:id", ...signedIn, handleUpload, updateLayout);
 router.delete("/:id", ...signedIn, deleteLayout);

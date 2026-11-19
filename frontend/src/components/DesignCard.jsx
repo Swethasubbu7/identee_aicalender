@@ -20,7 +20,7 @@ const describeDesign = (design) => {
   if (variant?._id) {
     const family = variant.familyId || {};
     return {
-      link: `/calendar/production/${variant._id}?design=${design._id}`,
+      link: `/calendar/staff/production/${variant._id}?design=${design._id}`,
       title: design.content?.businessName?.trim() || family.code || "Untitled calendar",
       subtitle: `${CUT_TYPE_LABELS[variant.cutType] || ""} ${variant.sizeCode?.replace("x", "×") || ""} · ${family.code || "layout"}`.trim(),
       preview: design.thumbnailUrl || design.content?.godImageUrl || variant.assets?.preview || null,
@@ -28,7 +28,7 @@ const describeDesign = (design) => {
   }
   if (design.layoutId?._id) {
     return {
-      link: `/calendar/customise/${design.layoutId._id}`,
+      link: `/calendar/staff/customise/${design.layoutId._id}`,
       title: design.layoutId.name || "Untitled calendar",
       subtitle: "Preview layout",
       preview: design.thumbnailUrl || design.layoutId.previewImage || null,

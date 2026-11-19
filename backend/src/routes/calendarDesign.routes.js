@@ -11,7 +11,12 @@ const {
   bulkDeleteDesigns,
   processGodImage,
 } = require("../controllers/calendarDesign.controller");
-const { verifyToken } = require("../middleware/auth.middleware");
+const { verifyToken: signedIn } = require("../middleware/auth.middleware");
+const { requirePermission } = require("../core/authenticate");
+const { P } = require("../core/roles");
+
+// Drafts / Customise: designers, managers and admins.
+const verifyToken = [signedIn, requirePermission(P.CAL_DESIGN)];
 const upload = require("../middleware/upload.middleware");
 
 const router = express.Router();

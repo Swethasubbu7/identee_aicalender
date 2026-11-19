@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const { rolesOf, canEnterModule } = require("../core/roles");
 
 const login = async (req, res) => {
   try {
@@ -38,6 +39,12 @@ const login = async (req, res) => {
       return res.status(401).json({
         message: "Invalid email or password",
       });
+    }
+
+    // This older sign-in is for the Calendar Tool only (Phase 2): staff
+    // without a calendar role sign in through their own panel.
+    if (!canEnterModule(rolesOf(user), "calendar")) {
+      return res.status(403).json({ message: "This account cannot sign in here." });
     }
 
     // Create JWT

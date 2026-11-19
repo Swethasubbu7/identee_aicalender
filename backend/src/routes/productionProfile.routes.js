@@ -5,11 +5,13 @@ const {
   updateProfile,
 } = require("../controllers/productionProfile.controller");
 const { verifyToken } = require("../middleware/auth.middleware");
+const { requirePermission } = require("../core/authenticate");
+const { P } = require("../core/roles");
 
 const router = express.Router();
 
 router.get("/", verifyToken, listProfiles);
-router.post("/", verifyToken, createProfile);
-router.put("/:id", verifyToken, updateProfile);
+router.post("/", verifyToken, requirePermission(P.CAL_SETTINGS_MANAGE), createProfile);
+router.put("/:id", verifyToken, requirePermission(P.CAL_SETTINGS_MANAGE), updateProfile);
 
 module.exports = router;

@@ -17,6 +17,8 @@ const {
   setAreaEdit,
 } = require("../controllers/aiCalendar.controller");
 const { verifyToken } = require("../middleware/auth.middleware");
+const { requirePermission, requirePermissionWhen } = require("../core/authenticate");
+const { P } = require("../core/roles");
 const upload = require("../middleware/upload.middleware");
 
 const router = express.Router();
@@ -38,21 +40,22 @@ const previewUpload = (req, res, next) =>
   });
 
 // All AI work happens on the server; the browser never sees the API key.
-router.post("/", verifyToken, createJob);
+// Normal Mode is free; AI Mode is paid (still behind the spend guard).
+router.post("/", verifyToken, requirePermission(P.CAL_DESIGN), requirePermissionWhen((req) => req.body?.mode === "ai", P.CAL_AI_GENERATE), createJob);
 // Admin-only one-image AI test (exactly one paid request, same safeguards).
-router.post("/test-image", verifyToken, createAdminTestImage);
+router.post("/test-image", verifyToken, requirePermission(P.CAL_AI_GENERATE, P.CAL_SETTINGS_MANAGE), createAdminTestImage);
 router.get("/", verifyToken, listJobs);
 router.get("/plan", verifyToken, getLayoutPlan);
 router.get("/:id", verifyToken, getJob);
-router.post("/:id/variations/:index/regenerate", verifyToken, regenerateVariation);
-router.post("/:id/variations/:index/print-check", verifyToken, printCheck);
-router.post("/:id/variations/:index/prepare-export", verifyToken, prepareExport);
-router.get("/:id/variations/:index/source.pdf", verifyToken, sourcePdf);
-router.post("/:id/variations/:index/export", verifyToken, artworkUpload, exportPdf);
-router.get("/:id/variations/:index/download/:kind", verifyToken, downloadPdf);
-router.put("/:id/variations/:index/preview", verifyToken, previewUpload, savePreview);
-router.put("/:id/variations/:index/name-style", verifyToken, setNameStyle);
-router.put("/:id/variations/:index/edits", verifyToken, setAreaEdit);
-router.post("/:id/variations/:index/save-layout", verifyToken, saveAsLayout);
+router.post("/:id/variations/:index/regenerate", verifyToken, requirePermission(P.CAL_DESIGN, P.CAL_AI_GENERATE), regenerateVariation);
+router.post("/:id/variations/:index/print-check", verifyToken, requirePermission(P.CAL_PRODUCTION_FILES), printCheck);
+router.post("/:id/variations/:index/prepare-export", verifyToken, requirePermission(P.CAL_PRODUCTION_FILES), prepareExport);
+router.get("/:id/variations/:index/source.pdf", verifyToken, requirePermission(P.CAL_PRODUCTION_FILES), sourcePdf);
+router.post("/:id/variations/:index/export", verifyToken, requirePermission(P.CAL_PRODUCTION_FILES), artworkUpload, exportPdf);
+router.get("/:id/variations/:index/download/:kind", verifyToken, requirePermission(P.CAL_PRODUCTION_FILES), downloadPdf);
+router.put("/:id/variations/:index/preview", verifyToken, requirePermission(P.CAL_DESIGN), previewUpload, savePreview);
+router.put("/:id/variations/:index/name-style", verifyToken, requirePermission(P.CAL_DESIGN), setNameStyle);
+router.put("/:id/variations/:index/edits", verifyToken, requirePermission(P.CAL_DESIGN), setAreaEdit);
+router.post("/:id/variations/:index/save-layout", verifyToken, requirePermission(P.CAL_DESIGN), saveAsLayout);
 
 module.exports = router;

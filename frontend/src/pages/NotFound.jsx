@@ -28,7 +28,7 @@ const NotFound = () => {
         <Typography variant="body2" sx={{ color: "var(--nc-text-2)", wordBreak: "break-all" }}>
           There is no page at {pathname}.
         </Typography>
-        <Button variant="contained" onClick={() => navigate("/dashboard")}>
+        <Button variant="contained" onClick={() => navigate("/calendar/staff")}>
           Back to dashboard
         </Button>
       </Box>

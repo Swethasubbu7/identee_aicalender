@@ -134,7 +134,7 @@ const Dashboard = () => {
                 variant="contained"
                 color="primary"
                 startIcon={<AddCircleOutlineIcon />}
-                onClick={() => navigate("/layouts?new=1")}
+                onClick={() => navigate("/calendar/staff/layouts?new=1")}
               >
                 Create
               </Button>
@@ -178,7 +178,7 @@ const Dashboard = () => {
                 variant="outlined"
                 color="primary"
                 endIcon={<ArrowForwardIcon />}
-                onClick={() => navigate("/drafts")}
+                onClick={() => navigate("/calendar/staff/drafts")}
               >
                 View Drafts
               </Button>
@@ -196,7 +196,7 @@ const Dashboard = () => {
               <Typography
                 variant="body2"
                 sx={{ color: "#B08D35", cursor: "pointer", fontWeight: 600 }}
-                onClick={() => navigate("/generated")}
+                onClick={() => navigate("/calendar/staff/generated")}
               >
                 View All
               </Typography>
@@ -224,7 +224,7 @@ const Dashboard = () => {
           <Typography
             variant="body2"
             sx={{ color: "#B08D35", cursor: "pointer", fontWeight: 600 }}
-            onClick={() => navigate("/drafts")}
+            onClick={() => navigate("/calendar/staff/drafts")}
           >
             View All
           </Typography>
@@ -255,7 +255,7 @@ const Dashboard = () => {
             <Button
               variant="contained"
               color="primary"
-              onClick={() => navigate("/layouts?new=1")}
+              onClick={() => navigate("/calendar/staff/layouts?new=1")}
             >
               Create New Project
             </Button>
@@ -305,7 +305,7 @@ const Dashboard = () => {
             variant="contained"
             color="primary"
             endIcon={<ArrowForwardIcon />}
-            onClick={() => navigate("/layouts?new=1")}
+            onClick={() => navigate("/calendar/staff/layouts?new=1")}
           >
             Get Started
           </Button>
