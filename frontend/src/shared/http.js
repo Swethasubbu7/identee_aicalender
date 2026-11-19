@@ -5,7 +5,7 @@
 //    request retried; if that fails, the user goes to that area's login.
 import axios from "axios";
 import { apiUrl } from "../config";
-import { audienceForPath, loginPathFor } from "./auth/audiences";
+import { audienceForPath, loginPath, loginPathFor } from "./auth/audiences";
 import { saveProfile } from "./auth/authClient";
 import { forgetSession } from "./auth/sessionCache";
 
@@ -46,7 +46,7 @@ export const setupHttp = () => {
     saveProfile(audience, null);
     forgetSession(audience);
     const target = loginPathFor(audience, window.location);
-    if (!window.location.pathname.endsWith("/login")) window.location.assign(target);
+    if (window.location.pathname !== loginPath(audience) && !window.location.pathname.endsWith("/login")) window.location.assign(target);
     return Promise.reject(error);
   });
 };

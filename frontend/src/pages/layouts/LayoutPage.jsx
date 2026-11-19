@@ -118,13 +118,13 @@ const LayoutPage = () => {
   };
 
   const handleCancel = () => {
-    navigate("/calendar/staff");
+    navigate("/dashboard");
   };
 
   const handleUseThis = () => {
     if (!selectedLayout) return;
     localStorage.setItem(SELECTED_LAYOUT_STORAGE_KEY, selectedLayout._id);
-    navigate(`/calendar/staff/customise/${selectedLayout._id}`, {
+    navigate(`/calendar/customise/${selectedLayout._id}`, {
       state: { layoutId: selectedLayout._id },
     });
   };
@@ -351,7 +351,7 @@ const LayoutPage = () => {
                     variant={variant}
                     canEdit
                     onEdit={(v) => setProductionDialog({ open: true, variantId: v._id })}
-                    onCustomise={(v) => navigate(`/calendar/staff/production/${v._id}`)}
+                    onCustomise={(v) => navigate(`/calendar/production/${v._id}`)}
                     onDelete={handleDeleteVariant}
                     deleting={deletingVariantId === variant._id}
                   />

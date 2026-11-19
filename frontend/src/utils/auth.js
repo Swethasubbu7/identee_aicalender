@@ -32,7 +32,7 @@ export const currentUser = () => {
 export const safeNextPath = (next) =>
   typeof next === "string" && next.startsWith("/") && !next.startsWith("//") && next !== "/"
     ? next
-    : "/calendar/staff";
+    : "/dashboard";
 
 export const loginPathFor = (location) => {
   const here = `${location.pathname}${location.search || ""}`;

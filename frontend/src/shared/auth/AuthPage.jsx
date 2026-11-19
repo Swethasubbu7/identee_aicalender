@@ -8,7 +8,7 @@ import "../../style/Login.css";
 import logo from "../../assets/nauticrew-logo.png";
 import logoDark from "../../assets/nauticrew-logo-dark.png";
 import { useColorMode } from "../../colorMode";
-import { AUDIENCES, authPath, safeNext } from "./audiences";
+import { AUDIENCES, authPath, loginPath, safeNext } from "./audiences";
 import { authClient, saveProfile } from "./authClient";
 import { forgetSession } from "./sessionCache";
 
@@ -166,7 +166,7 @@ const AuthPage = ({ audience, mode }) => {
         const res = await client.resetPassword(email, code, password);
         setPassword("");
         setConfirm("");
-        go("login", { info: res.message });
+        navigate(`${loginPath(audience)}?${new URLSearchParams({ email, info: res.message })}`);
       } catch (err) {
         setError(messageOf(err, "The password could not be changed."));
       }
@@ -306,7 +306,7 @@ const AuthPage = ({ audience, mode }) => {
                   </>
                 )}
                 {mode !== "login" && (
-                  <Link to={authPath(audience, "login")} style={linkStyle}>
+                  <Link to={loginPath(audience)} style={linkStyle}>
                     ← Back to sign-in
                   </Link>
                 )}

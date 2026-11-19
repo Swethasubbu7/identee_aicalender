@@ -298,8 +298,8 @@ const AIDesigns = () => {
 
   const backToCustomise = () =>
     job
-      ? navigate(`/calendar/staff/production/${job.selectedVariantId}${job.designId ? `?design=${job.designId}` : ""}`)
-      : navigate("/calendar/staff/layouts");
+      ? navigate(`/calendar/production/${job.selectedVariantId}${job.designId ? `?design=${job.designId}` : ""}`)
+      : navigate("/layouts");
 
   const resetSelection = () => {
     setCheck({ loading: false, result: null, error: "" });
@@ -388,7 +388,7 @@ const AIDesigns = () => {
         ...(job.options || {}),
       };
       const fresh = await confirmPaid((confirmation) => startAiCalendarJob({ ...body, ...confirmation }));
-      if (fresh) navigate(`/calendar/staff/designs/${fresh._id}`, { replace: true });
+      if (fresh) navigate(`/calendar/designs/${fresh._id}`, { replace: true });
     } catch (err) {
       setError(apiMessage(err, "Could not start the generation"));
     } finally {
@@ -400,7 +400,7 @@ const AIDesigns = () => {
     return (
       <Box sx={{ p: 4 }}>
         <Alert severity="error">{error}</Alert>
-        <Button sx={{ mt: 2 }} onClick={() => navigate("/calendar/staff/layouts")}>Back to Layouts</Button>
+        <Button sx={{ mt: 2 }} onClick={() => navigate("/layouts")}>Back to Layouts</Button>
       </Box>
     );
   }
@@ -692,7 +692,7 @@ const AIDesigns = () => {
                     severity="success"
                     sx={{ mt: 1 }}
                     action={
-                      <Button color="inherit" size="small" onClick={() => navigate(`/calendar/staff/production/${saving.result._id}`)}>
+                      <Button color="inherit" size="small" onClick={() => navigate(`/calendar/production/${saving.result._id}`)}>
                         Open
                       </Button>
                     }

@@ -27,19 +27,17 @@ import { useColorMode } from "../colorMode";
 
 // "Create New Project" opens the Layouts page in "new project" mode: the
 // designer selects ONE approved layout, then customises it and generates.
-const CREATE_PATH = "/calendar/staff/layouts?new=1";
+const CREATE_PATH = "/layouts?new=1";
 
 const NAV_ITEMS = [
-  { key: "dashboard", label: "Dashboard", icon: DashboardOutlinedIcon, path: "/calendar/staff" },
+  { key: "dashboard", label: "Dashboard", icon: DashboardOutlinedIcon, path: "/dashboard" },
   { key: "create", label: "Create New Project", icon: AddCircleOutlineIcon, path: CREATE_PATH },
-  { key: "generated", label: "Generated Designs", icon: AutoAwesomeOutlinedIcon, path: "/calendar/staff/generated" },
-  { key: "drafts", label: "Draft Projects", icon: DescriptionOutlinedIcon, path: "/calendar/staff/drafts" },
-  { key: "layouts", label: "Layouts", icon: GridViewOutlinedIcon, path: "/calendar/staff/layouts" },
-  { key: "settings", label: "Settings", icon: SettingsOutlinedIcon, path: "/calendar/staff/settings" },
+  { key: "generated", label: "Generated Designs", icon: AutoAwesomeOutlinedIcon, path: "/generated" },
+  { key: "drafts", label: "Draft Projects", icon: DescriptionOutlinedIcon, path: "/drafts" },
+  { key: "layouts", label: "Layouts", icon: GridViewOutlinedIcon, path: "/layouts" },
+  { key: "settings", label: "Settings", icon: SettingsOutlinedIcon, path: "/settings" },
 ];
 
-// The highlighted item comes from the URL, so it is right after a refresh,
-// a direct link or the browser's back button.
 // The signed-in member's calendar role, as shown under their name.
 const ROLE_LABELS = {
   SUPER_ADMIN: "Super Admin",
@@ -50,15 +48,15 @@ const ROLE_LABELS = {
 };
 const roleLabel = (user) => ROLE_LABELS[user?.roles?.platform] || ROLE_LABELS[user?.roles?.calendar] || "Designer";
 
-// All Calendar Staff pages live under /calendar/staff (Phase 2).
+// The highlighted item comes from the URL, so it is right after a refresh,
+// a direct link or the browser's back button.
 const activeNavKey = ({ pathname, search = "" }) => {
-  const page = pathname.replace(/^\/calendar\/staff/, "").replace(/\/+$/, "");
-  if (page === "") return "dashboard";
-  if (page.startsWith("/generated") || page.startsWith("/designs")) return "generated";
-  if (page.startsWith("/drafts")) return "drafts";
-  if (page.startsWith("/settings")) return "settings";
-  if (page.startsWith("/layouts")) return new URLSearchParams(search).get("new") === "1" ? "create" : "layouts";
-  if (page.startsWith("/customise") || page.startsWith("/production")) return "layouts";
+  if (pathname.startsWith("/dashboard")) return "dashboard";
+  if (pathname.startsWith("/generated") || pathname.startsWith("/calendar/designs")) return "generated";
+  if (pathname.startsWith("/drafts")) return "drafts";
+  if (pathname.startsWith("/settings")) return "settings";
+  if (pathname.startsWith("/layouts")) return new URLSearchParams(search).get("new") === "1" ? "create" : "layouts";
+  if (pathname.startsWith("/calendar/")) return "layouts";
   return null;
 };
 

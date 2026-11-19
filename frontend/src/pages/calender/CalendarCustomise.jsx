@@ -158,7 +158,7 @@ const CalendarCustomise = () => {
 
   const handleTemplateChange = (newLayoutId) => {
     if (newLayoutId === layoutId) return;
-    navigate(`/calendar/staff/customise/${newLayoutId}`);
+    navigate(`/calendar/customise/${newLayoutId}`);
   };
 
   const scheduleAutosave = useCallback(() => {
@@ -364,7 +364,7 @@ const CalendarCustomise = () => {
     return (
       <Box sx={{ p: 4 }}>
         <Alert severity="error">{error}</Alert>
-        <Button sx={{ mt: 2 }} onClick={() => navigate("/calendar/staff/layouts")}>
+        <Button sx={{ mt: 2 }} onClick={() => navigate("/layouts")}>
           Back to Choose Layout
         </Button>
       </Box>

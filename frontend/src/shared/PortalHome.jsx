@@ -27,7 +27,13 @@ const ROADMAP = {
   },
   "calendar-customer": {
     phase: "Phase 8",
-    items: ["Your calendar design previews", "Approve, reject or request changes", "Your calendar orders and their status"],
+    items: [
+      "Choose an approved layout and edit your calendar with the studio editor",
+      "Normal Mode always; a limited number of free AI designs",
+      "Your own drafts and designs only",
+      "Preview image and watermarked PDF proof",
+      "Submit for printing and follow your orders",
+    ],
   },
 };
 

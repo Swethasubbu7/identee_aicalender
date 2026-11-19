@@ -39,7 +39,7 @@ const GeneratedDesigns = () => {
               Calendar designs from the whole team. Open one to preview, run the print check and download the PDFs.
             </Typography>
           </Box>
-          <Button variant="contained" startIcon={<AddCircleOutlineIcon />} onClick={() => navigate("/calendar/staff/layouts?new=1")}>
+          <Button variant="contained" startIcon={<AddCircleOutlineIcon />} onClick={() => navigate("/layouts?new=1")}>
             Create New Project
           </Button>
         </Box>

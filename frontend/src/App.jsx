@@ -16,12 +16,13 @@ import PortalHome from "./shared/PortalHome";
 import { AUDIENCES } from "./shared/auth/audiences";
 
 // Nauticrew platform routes (Phase 2). Four separate sign-in areas:
-//   /calendar/staff     the existing AI Calendar Tool (calendar staff)
+//   /, /dashboard, /layouts, …  the existing AI Calendar Tool (calendar staff),
+//                       at its original addresses
 //   /calendar/customer  calendar customers (panel: Phase 8)
 //   /shop/staff         shop staff / admin (panel: Phase 6)
 //   /shop/account       shop customers (panel: Phase 5)
-// The landing page takes "/" in Phase 3; until then "/" opens the Calendar
-// Tool. Old Calendar Tool addresses redirect, so bookmarks keep working.
+// "/" is the Calendar Staff sign-in, as before (the landing page will need
+// its own address decided in Phase 3).
 
 const SPLASH_KEY = "nauticrew.splashShown";
 const splashSeen = () => {
@@ -42,15 +43,17 @@ const Redirect = ({ to }) => {
   return <Navigate to={`${path}${search}${hash}`} replace />;
 };
 
-const OLD_CALENDAR_PATHS = [
-  ["/dashboard", "/calendar/staff"],
-  ["/layouts", "/calendar/staff/layouts"],
-  ["/drafts", "/calendar/staff/drafts"],
-  ["/generated", "/calendar/staff/generated"],
-  ["/settings", "/calendar/staff/settings"],
-  ["/calendar/designs/:jobId", "/calendar/staff/designs/:jobId"],
-  ["/calendar/customise/:layoutId", "/calendar/staff/customise/:layoutId"],
-  ["/calendar/production/:variantId", "/calendar/staff/production/:variantId"],
+// Calendar Staff use the original Calendar Tool addresses; the
+// /calendar/staff/... forms (used briefly during Phase 2) redirect to them.
+const CALENDAR_STAFF_ALIASES = [
+  ["/calendar/staff", "/dashboard"],
+  ["/calendar/staff/layouts", "/layouts"],
+  ["/calendar/staff/drafts", "/drafts"],
+  ["/calendar/staff/generated", "/generated"],
+  ["/calendar/staff/settings", "/settings"],
+  ["/calendar/staff/designs/:jobId", "/calendar/designs/:jobId"],
+  ["/calendar/staff/customise/:layoutId", "/calendar/customise/:layoutId"],
+  ["/calendar/staff/production/:variantId", "/calendar/production/:variantId"],
 ];
 
 // Sign-in pages of one area (customers can also register).
@@ -85,19 +88,20 @@ function App() {
     <BrowserRouter>
       {showSplash && <SplashScreen onDone={hideSplash} />}
       <Routes>
-        <Route path="/" element={<Navigate to="/calendar/staff" replace />} />
-
-        {/* Calendar Staff: the existing AI Calendar Tool */}
+        {/* Calendar Staff: the existing AI Calendar Tool at its original addresses */}
+        <Route path="/" element={<AuthPage audience="calendar-staff" mode="login" />} />
         {authRoutes("calendar-staff")}
-        <Route path="/calendar/staff" element={staff(<Dashboard />)} />
-        <Route path="/calendar/staff/layouts" element={staff(<LayoutPage />)} />
-        <Route path="/calendar/staff/drafts" element={staff(<DraftProjects />)} />
-        <Route path="/calendar/staff/generated" element={staff(<GeneratedDesigns />)} />
-        <Route path="/calendar/staff/settings" element={staff(<Settings />)} />
-        <Route path="/calendar/staff/designs/:jobId" element={staff(<AIDesigns />)} />
-        <Route path="/calendar/staff/customise/:layoutId" element={staff(<CalendarCustomise />)} />
-        <Route path="/calendar/staff/production/:variantId" element={staff(<ProductionCustomise />)} />
-        <Route path="/calendar/staff/*" element={staff(<NotFound />)} />
+        <Route path="/dashboard" element={staff(<Dashboard />)} />
+        <Route path="/layouts" element={staff(<LayoutPage />)} />
+        <Route path="/drafts" element={staff(<DraftProjects />)} />
+        <Route path="/generated" element={staff(<GeneratedDesigns />)} />
+        <Route path="/settings" element={staff(<Settings />)} />
+        <Route path="/calendar/designs/:jobId" element={staff(<AIDesigns />)} />
+        <Route path="/calendar/customise/:layoutId" element={staff(<CalendarCustomise />)} />
+        <Route path="/calendar/production/:variantId" element={staff(<ProductionCustomise />)} />
+        {CALENDAR_STAFF_ALIASES.map(([from, to]) => (
+          <Route key={from} path={from} element={<Redirect to={to} />} />
+        ))}
 
         {/* Calendar Customer, Shop Staff, Shop Customer */}
         {authRoutes("calendar-customer")}
@@ -106,11 +110,6 @@ function App() {
         <Route path="/shop/staff" element={<RequireAudience audience="shop-staff"><PortalHome audience="shop-staff" /></RequireAudience>} />
         {authRoutes("shop-customer")}
         <Route path="/shop/account" element={<RequireAudience audience="shop-customer"><PortalHome audience="shop-customer" /></RequireAudience>} />
-
-        {/* Old Calendar Tool addresses */}
-        {OLD_CALENDAR_PATHS.map(([from, to]) => (
-          <Route key={from} path={from} element={<Redirect to={to} />} />
-        ))}
 
         <Route path="*" element={staff(<NotFound />)} />
       </Routes>

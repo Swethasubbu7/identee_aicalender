@@ -570,7 +570,7 @@ const ProductionCustomiseEditor = () => {
       // The one-image test has its own endpoint (exactly one request).
       const start = adminTest ? startAdminTestImage : startAiCalendarJob;
       const job = ai ? await confirmPaid((confirmation) => start({ ...body, ...confirmation })) : await startAiCalendarJob(body);
-      if (job) return navigate(`/calendar/staff/designs/${job._id}`);
+      if (job) return navigate(`/calendar/designs/${job._id}`);
     } catch (err) {
       setSnackbar(err.response?.data?.message || "Could not start the generation.");
     }
@@ -591,7 +591,7 @@ const ProductionCustomiseEditor = () => {
     return (
       <Box sx={{ p: 4 }}>
         <Alert severity="error">{error}</Alert>
-        <Button sx={{ mt: 2 }} onClick={() => navigate("/calendar/staff/layouts")}>Back to Layouts</Button>
+        <Button sx={{ mt: 2 }} onClick={() => navigate("/layouts")}>Back to Layouts</Button>
       </Box>
     );
   }
@@ -617,7 +617,7 @@ const ProductionCustomiseEditor = () => {
       <Box sx={{ flexGrow: 1, minWidth: 0, display: "flex", flexDirection: "column", height: "100vh" }}>
         {/* Header */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 3, py: 1.5, background: "#161616", flexWrap: "wrap" }}>
-          <IconButton size="small" onClick={() => navigate("/calendar/staff/layouts")} sx={{ color: "#E9C767" }}>
+          <IconButton size="small" onClick={() => navigate("/layouts")} sx={{ color: "#E9C767" }}>
             <ArrowBackIcon />
           </IconButton>
           <Box sx={{ flexGrow: 1, minWidth: 0 }}>
