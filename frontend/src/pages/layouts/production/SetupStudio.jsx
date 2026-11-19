@@ -117,7 +117,7 @@ const SetupStudio = ({ variant, onSaved, onChanged, auto = false }) => {
     const out = {};
     for (const r of start.regions || []) {
       if (r.role === "CALENDAR_AREA") continue; // follows the calendar pad
-      out[r.role] = { objectIds: r.objectIds, binding: r.binding, textStyle: r.textStyle || {}, source: r.source || null };
+      out[r.role] = { objectIds: r.objectIds, binding: r.binding, textStyle: r.textStyle || {}, source: r.source || null, areaMm: r.areaMm || null };
     }
     return out;
   });
@@ -276,7 +276,15 @@ const SetupStudio = ({ variant, onSaved, onChanged, auto = false }) => {
   const body = () => {
     const regions = Object.entries(items)
       .filter(([, v]) => v.objectIds?.length)
-      .map(([role, v]) => ({ role, objectIds: v.objectIds, binding: v.binding, textStyle: v.textStyle, ...(v.source && { source: v.source }) }));
+      .map(([role, v]) => ({
+        role,
+        objectIds: v.objectIds,
+        binding: v.binding,
+        textStyle: v.textStyle,
+        ...(v.source && { source: v.source }),
+        // A text area of its own size (kept while its objects are unchanged).
+        ...(v.areaMm && { areaMm: v.areaMm }),
+      }));
     const cake = items.CAKE_MOUNT;
     if (cake?.objectIds?.length) regions.push({ role: "CALENDAR_AREA", objectIds: cake.objectIds, ...(cake.source && { source: cake.source }) });
     if (showLaser && laserCut && laserAlign) {

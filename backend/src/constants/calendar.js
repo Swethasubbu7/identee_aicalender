@@ -153,9 +153,23 @@ const EXPECTED_BINDINGS = {
 };
 
 const LAYOUT_STATUSES = ["DRAFT", "VALIDATED", "ACTIVE", "ARCHIVED"];
+
+// Special Die-Cut: a free-form die shape. Its outer size may differ from the
+// catalogue size by up to this much per side (owner decision 2026-11-17:
+// e.g. 294.6 × 466.2 mm is a 12×18 Special). It is printed and cut at its
+// OWN size — never stretched. Normal and Die-Cut keep the strict size rule.
+const SPECIAL_SHAPE_TOLERANCE_MM = 15;
+/** Is this outer size (mm) an accepted Special shape for the catalogue size? */
+const specialShapeFits = (cutType, trim, format) =>
+  cutType === "special-die-cut" &&
+  Boolean(trim && format?.widthIn && format?.heightIn) &&
+  Math.abs(trim.widthMm - format.widthIn * 25.4) <= SPECIAL_SHAPE_TOLERANCE_MM &&
+  Math.abs(trim.heightMm - format.heightIn * 25.4) <= SPECIAL_SHAPE_TOLERANCE_MM;
 const FAMILY_STATUSES = ["ACTIVE", "CANDIDATE", "LEGACY"];
 
 module.exports = {
+  SPECIAL_SHAPE_TOLERANCE_MM,
+  specialShapeFits,
   CUT_TYPES,
   CUT_TYPE_LABELS,
   CAKE_STATUS,

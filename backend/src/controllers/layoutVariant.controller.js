@@ -84,9 +84,12 @@ const getVariant = async (req, res) => {
     if (!variant || (!hasFullAccess(req) && !canUseLayout(req, variant))) {
       return res.status(404).json({ message: "Layout variant not found" });
     }
-    res
-      .status(200)
-      .json({ message: "Layout variant fetched", variant: withPublicUrls(variant, req) });
+    const out = withPublicUrls(variant, req);
+    // Never-saved drafts: their import analysis with the current rules.
+    const { freshImportSummary } = require("./productionLayout.controller");
+    const fresh = await freshImportSummary(variant);
+    if (fresh) out.importSummary = fresh;
+    res.status(200).json({ message: "Layout variant fetched", variant: out });
   } catch (error) {
     console.error("Get variant error:", error);
     res.status(400).json({ message: "Invalid layout variant ID" });

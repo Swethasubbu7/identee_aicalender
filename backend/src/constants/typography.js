@@ -46,6 +46,37 @@ const FONT_STYLE_KEYS = [
   "arima-muktamalar",
   "tirotamil-catamaran",
   "catamaran-clean",
+  // More styles by type (2026-11-18).
+  "montserrat-black",
+  "poppins-black",
+  "blackops-roboto",
+  "outfit",
+  "raleway-heavy",
+  "josefin-bold",
+  "exo2",
+  "lexend",
+  "nunito-black",
+  "quicksand",
+  "baloo2",
+  "varela-round",
+  "mplus-rounded",
+  "courgette-lato",
+  "merienda",
+  "cookie-lato",
+  "berkshire-lora",
+  "uncial-cardo",
+  "almendra-lora",
+  "rye-lato",
+  "fondamento-lora",
+  "bungeeshade-roboto",
+  "anektamil-heavy",
+  "anektamil-condensed",
+  "hindmadurai-catamaran",
+  "baloothambi-rounded",
+  "coiny-baloo",
+  "kavivanar-hind",
+  "arima-heavy",
+  "tirotamil-muktamalar",
 ];
 const TEXT_COLOUR_KEYS = ["#7A1F1F", "#B8892B", "#FFD966", "#FFF4D6", "#FFFFFF", "#1A1A1A", "#1F3F8C", "#0F5C4A", "#C2410C", "#5B2C83"];
 
@@ -101,7 +132,7 @@ const nameStyleOf = (value) => {
 // side): { text?, size?, colour? }. text: the area's own text (line breaks
 // kept, at most EDIT_TEXT_MAX characters; empty = as generated); size and
 // colour as in nameStyleOf. Nothing set → null (= as generated).
-const EDIT_AREAS = ["name", "left", "right"];
+const EDIT_AREAS = ["name", "left", "right", "line1", "line2"];
 const EDIT_TEXT_MAX = 300;
 const areaEditOf = (value) => {
   const out = { ...(nameStyleOf(value) || {}) };
@@ -109,6 +140,9 @@ const areaEditOf = (value) => {
     const text = value.text.replace(/\r\n?/g, "\n").replace(/[\u0000-\u0009\u000B-\u001F\u007F]/g, "").trim().slice(0, EDIT_TEXT_MAX);
     if (text) out.text = text;
   }
+  // The area's own font style (a FONT_STYLES key); "" / unknown = as generated.
+  const fontStyle = fontStyleOf(value?.fontStyle);
+  if (fontStyle) out.fontStyle = fontStyle;
   return Object.keys(out).length ? out : null;
 };
 

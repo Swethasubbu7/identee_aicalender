@@ -212,9 +212,11 @@ const hexLuminance = (hex) => {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 };
 
-const drawRegionText = (ctx, region, text, { alpha = 1, font: fontOverride = null, color = null, wrap = false, outline = false, scale = 1, fill = false, twoLines = false, targetMm = null } = {}) => {
+const drawRegionText = (ctx, region, text, { alpha = 1, font: fontOverride = null, color = null, wrap = false, outline = false, scale = 1, fill = false, twoLines = false, forceTwoLines = false, targetMm = null } = {}) => {
   const style = region.textStyle || {};
-  const font = fontOverride ? { style: "normal", ...fontOverride } : cssFontFromPdf(style.fontFamily);
+  const baseFont = fontOverride ? { style: "normal", ...fontOverride } : cssFontFromPdf(style.fontFamily);
+  // Layout setting: a heavier weight for this text area (e.g. 700 = bold).
+  const font = Number(style.fontWeight) > 0 ? { ...baseFont, weight: Number(style.fontWeight) } : baseFont;
   const hs = style.horizontalScale || 1;
   // Lettering drawn as shapes fills its area edge to edge; new text gets a
   // little breathing room so it never touches the band / box edges.
@@ -302,7 +304,8 @@ const drawRegionText = (ctx, region, text, { alpha = 1, font: fontOverride = nul
         if (!best || w < best.w) best = { w, pair };
       }
       const s2 = Math.min((area.width / (best.w * hs)) * 10, area.height / (2 * 1.15), startMm * scale);
-      if (s2 > sizeMm * 1.15) {
+      // forceTwoLines: the layout asks for two lines (textStyle.maxLines = 2).
+      if (s2 > sizeMm * 1.15 || forceTwoLines) {
         lines = best.pair;
         sizeMm = s2;
         ratio = 1.15;
@@ -881,11 +884,14 @@ export const drawLayoutPreview = (canvas, { variant, images, content, pxPerMm, s
   // or the right box text.
   const areaEdits = content.areaEdits || null;
   const areaOf = (region) =>
-    region.binding === "businessName" ? "name" : region.role === "SIDE_BOX_LEFT" ? "left" : region.role === "SIDE_BOX_RIGHT" ? "right" : null;
+    region.binding === "businessName"
+      ? "name"
+      : ({ SIDE_BOX_LEFT: "left", SIDE_BOX_RIGHT: "right", TEXT_LINE_1: "line1", TEXT_LINE_2: "line2" })[region.role] || null;
   const editOf = (region) => (areaEdits && areaOf(region) ? areaEdits[areaOf(region)] || null : null);
   const editColour = (edit) => (/^#[0-9a-f]{6}$/i.test(edit?.colour || "") ? edit.colour : null);
   const editTargetMm = (edit) => (Number(edit?.targetPt) > 0 ? Number(edit.targetPt) * MM_PER_PT : null);
   const editText = (edit, value) => (typeof edit?.text === "string" && edit.text.trim() ? edit.text : value);
+  const editFont = (edit) => (edit?.font?.family ? { style: "normal", ...edit.font } : null);
   // Areas whose layout artwork is removed: hidden sections, and side boxes
   // that get an app-drawn style instead of the layout's own box.
   const areas = sectionAreas(variant);
@@ -1264,7 +1270,7 @@ export const drawLayoutPreview = (canvas, { variant, images, content, pxPerMm, s
     const font = pair ? (region.binding === "businessName" ? pair.heading : pair.body) : null;
     if (value && String(value).trim()) {
       fits[region.id] = drawRegionText(ctx, target, value, {
-        font,
+        font: editFont(edit) || font,
         color: editColour(edit) || chosenColour || textColourFor(region, textArea(target)),
         scale: sizeScale(region),
         ...(editTargetMm(edit) ? { targetMm: editTargetMm(edit) } : {}),
@@ -1274,7 +1280,9 @@ export const drawLayoutPreview = (canvas, { variant, images, content, pxPerMm, s
         // Name and text lines: as large as their area allows; a long text
         // line may use two lines within its own area.
         fill: region.binding === "businessName" || ["TEXT_LINE_1", "TEXT_LINE_2", "SIDE_BOX_LEFT"].includes(region.role),
-        twoLines: region.role === "TEXT_LINE_1" || region.role === "TEXT_LINE_2",
+        twoLines: region.role === "TEXT_LINE_1" || region.role === "TEXT_LINE_2" || region.textStyle?.maxLines === 2,
+        // Layout setting: a single-line slot shown on two lines (e.g. the name).
+        forceTwoLines: region.textStyle?.maxLines === 2,
         // The file had no live text here (letters drawn as shapes), or the
         // text sits straight on a complete AI artwork: a contrasting edge
         // keeps it readable on any background.
@@ -1301,7 +1309,7 @@ export const drawLayoutPreview = (canvas, { variant, images, content, pxPerMm, s
         sampleText: "",
       };
       fits[region.id] = drawRegionText(ctx, target, rightText, {
-        font: (chosenFonts || fonts)?.body || null,
+        font: editFont(rightEdit) || (chosenFonts || fonts)?.body || null,
         scale: sizeScale(region),
         ...(editTargetMm(rightEdit) ? { targetMm: editTargetMm(rightEdit) } : {}),
         // The left box's colour was made for the left box's fill: on the

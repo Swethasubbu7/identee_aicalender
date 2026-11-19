@@ -9,6 +9,8 @@ const AREAS = [
   { key: "name", label: "Business name" },
   { key: "left", label: "Left side" },
   { key: "right", label: "Right side" },
+  { key: "line1", label: "Text line 1" },
+  { key: "line2", label: "Text line 2" },
 ];
 
 /** Which areas this AI design has, and whether each holds text. */
@@ -40,13 +42,23 @@ const editableAreas = (job, variation) => {
               : "The right side shows the product picture painted by the AI. It is part of the AI artwork and is not edited here.",
           };
   }
+  // Text lines (e.g. the address and phone number of a layout without side boxes).
+  for (const [key, role, section] of [["line1", "TEXT_LINE_1", "showTextLine1"], ["line2", "TEXT_LINE_2", "showTextLine2"]]) {
+    const region = regions.find((r) => r.role === role);
+    const text = region?.binding ? content[region.binding] : "";
+    if (region && options[section] !== false && String(text || "").trim()) out[key] = { text, multiline: true };
+  }
   for (const k of Object.keys(out)) if (!out[k]) delete out[k];
   return out;
 };
 
 const regionIdsOf = (variation, area) =>
   (variation?.variant?.regions || [])
-    .filter((r) => (area === "name" ? r.binding === "businessName" : r.role === (area === "left" ? "SIDE_BOX_LEFT" : "SIDE_BOX_RIGHT")))
+    .filter((r) =>
+      area === "name"
+        ? r.binding === "businessName"
+        : r.role === { left: "SIDE_BOX_LEFT", right: "SIDE_BOX_RIGHT", line1: "TEXT_LINE_1", line2: "TEXT_LINE_2" }[area],
+    )
     .map((r) => r.id);
 
 const DesignEditPanel = ({ job, variation, edits, fits = {}, saving = {}, errors = {}, onChange }) => {
@@ -65,7 +77,7 @@ const DesignEditPanel = ({ job, variation, edits, fits = {}, saving = {}, errors
         Each part is edited on its own: the God image, artwork, layout and the other parts stay exactly as generated. No AI
         request.
       </Typography>
-      <Tabs value={current} onChange={(_, v) => setTab(v)} variant="fullWidth" sx={{ minHeight: 36, mb: 1.5 }}>
+      <Tabs value={current} onChange={(_, v) => setTab(v)} variant={shown.length > 3 ? "scrollable" : "fullWidth"} scrollButtons="auto" sx={{ minHeight: 36, mb: 1.5 }}>
         {shown.map((a) => (
           <Tab key={a.key} value={a.key} label={a.label} sx={{ minHeight: 36, textTransform: "none", fontSize: 13, px: 0.5 }} />
         ))}
@@ -83,6 +95,9 @@ const DesignEditPanel = ({ job, variation, edits, fits = {}, saving = {}, errors
           capped={capped}
           saving={Boolean(saving[current])}
           error={errors[current] || ""}
+          // The business name uses a style's heading font, the boxes its text font.
+          fontRole={current === "name" ? "heading" : "body"}
+          language={job.options?.language === "tamil" ? "tamil" : "english"}
           onChange={(edit) => onChange(current, edit)}
         />
       )}

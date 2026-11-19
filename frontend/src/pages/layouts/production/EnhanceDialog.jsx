@@ -119,7 +119,7 @@ const EnhanceDialog = ({ open, variantId, onClose, onApproved }) => {
             {result.text} {result.status ? `Layout validation now: ${result.status}.` : ""}
           </Alert>
         )}
-        {!p ? (
+        {!p && error ? null : !p ? (
           <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress sx={{ color: ACCENT }} /></Box>
         ) : (
           <>

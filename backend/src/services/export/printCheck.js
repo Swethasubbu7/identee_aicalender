@@ -2,6 +2,7 @@
 // Each check is PASS / WARN / FAIL / PENDING. FAIL blocks the export;
 // PENDING marks printer values that are not confirmed yet (never invented).
 const config = require("../../config");
+const { specialShapeFits } = require("../../constants/calendar");
 const { NEEDS_CONFIRMATION } = require("./calendarPdf");
 const { compositionMode } = require("../layout/composition");
 
@@ -59,11 +60,13 @@ const runPrintCheck = ({ variant, format, settings, images = {}, content = {}, o
     const wMm = format.widthIn * MM_PER_IN;
     const hMm = format.heightIn * MM_PER_IN;
     const ok = near(variant.trim.widthMm, wMm, tol) && near(variant.trim.heightMm, hMm, tol);
+    // Special Die-Cut: an accepted shape of its own size (never stretched).
+    const special = !ok && specialShapeFits(variant.cutType, variant.trim, format);
     checks.push(
       check(
         "size",
         "Physical size",
-        ok ? "PASS" : "FAIL",
+        ok ? "PASS" : special ? "WARN" : "FAIL",
         `${(variant.trim.widthMm / MM_PER_IN).toFixed(2)} × ${(variant.trim.heightMm / MM_PER_IN).toFixed(2)} in ` +
           `(catalogue ${format.widthIn} × ${format.heightIn} in, tolerance ${tol} mm).`,
       ),

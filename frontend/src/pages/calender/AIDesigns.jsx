@@ -43,6 +43,8 @@ import { compositionMode, disabledSections, effectiveOptions } from "../../utils
 
 const POLL_MS = 3000;
 const FINISHED = ["DONE", "PARTIAL", "FAILED"];
+// Designs edited in place after they are made (Edit design panel).
+const EDITABLE = ["ai", "normal"];
 const GOLD = "#B08D35";
 const sizeLabel = (code) => code?.replace("x", "×");
 const apiMessage = (err, fallback) => err.response?.data?.message || err.message || fallback;
@@ -180,6 +182,10 @@ const AIDesigns = () => {
   const [editSave, setEditSave] = useState({ saving: {}, errors: {} });
   const editTimers = useRef({});
   const nameEdited = useRef(new Set());
+  // "Edit content" on an AI design opens the in-place editor (no navigation).
+  const editPanelRef = useRef(null);
+  const [editRequest, setEditRequest] = useState(0);
+  const [editFlash, setEditFlash] = useState(false);
   const editSaving = Object.values(editSave.saving).some(Boolean);
   const [productChoice, setProductChoice] = useState("original");
   const [selectedIndex, setSelectedIndex] = useState(null);
@@ -243,7 +249,7 @@ const AIDesigns = () => {
           // Keep a picture of the finished design for the Dashboard gallery.
           if (!v.previewUrl && productChoice === "original") {
             saveAiVariationPreview(job._id, v.index, p.blob).catch(() => {});
-          } else if (job.mode === "ai" && productChoice === "original" && nameEdited.current.has(previewKey(v))) {
+          } else if (EDITABLE.includes(job.mode) && productChoice === "original" && nameEdited.current.has(previewKey(v))) {
             // Business name edited: the gallery shows the design as it is now.
             nameEdited.current.delete(previewKey(v));
             saveAiVariationPreview(job._id, v.index, p.blob).catch(() => {});
@@ -265,6 +271,30 @@ const AIDesigns = () => {
     setComposeErrors((all) => dropKey(all, previewKey(v)));
     setComposeTick((t) => t + 1);
   };
+
+  // Bring the Edit design panel into view once it is on screen (the selected
+  // design may still be drawing), and highlight it briefly.
+  const editHandled = useRef(0);
+  useEffect(() => {
+    if (!editRequest || editHandled.current === editRequest || !editPanelRef.current) return undefined;
+    editHandled.current = editRequest;
+    const panel = editPanelRef.current;
+    const show = () => panel.scrollIntoView({ behavior: "smooth", block: "start" });
+    show();
+    panel.querySelector("input, textarea")?.focus({ preventScroll: true });
+    // Pictures loading above the panel (narrow screens) push it down: show it
+    // again once they have loaded.
+    const pending = [...document.querySelectorAll("img")].filter((img) => !img.complete);
+    pending.forEach((img) => img.addEventListener("load", show, { once: true }));
+    const again = setTimeout(show, 700);
+    setEditFlash(true);
+    const t = setTimeout(() => setEditFlash(false), 1600);
+    return () => {
+      clearTimeout(t);
+      clearTimeout(again);
+      pending.forEach((img) => img.removeEventListener("load", show));
+    };
+  }, [editRequest, selectedIndex, previews, job]);
 
   const backToCustomise = () =>
     job
@@ -309,6 +339,18 @@ const AIDesigns = () => {
   const choose = (index) => {
     setSelectedIndex(index);
     resetSelection();
+  };
+
+  // "Edit content" stays on this page (AI and Normal Mode designs): it selects
+  // a finished design and brings its Edit design panel into view.
+  const firstDone = job?.variations?.find((v) => v.status === "DONE")?.index ?? null;
+  const editContent = () => {
+    if (!EDITABLE.includes(job.mode)) return backToCustomise();
+    const index = selectedIndex != null && job.variations[selectedIndex]?.status === "DONE" ? selectedIndex : firstDone;
+    if (index == null) return undefined;
+    if (index !== selectedIndex) choose(index);
+    setEditRequest((n) => n + 1);
+    return undefined;
   };
 
   const regenerate = async (index) => {
@@ -380,7 +422,7 @@ const AIDesigns = () => {
     return keys.length ? previews[keys[keys.length - 1]] : null;
   };
   const selectedPreview = selected
-    ? previews[previewKey(selected)] || (job.mode === "ai" ? earlierPreview(selected) : null)
+    ? previews[previewKey(selected)] || (EDITABLE.includes(job.mode) ? earlierPreview(selected) : null)
     : null;
   const step = !selected ? 0 : exporting.result ? 3 : check.result ? 2 : 1;
   // Sections switched off or left empty (their space is artwork).
@@ -441,7 +483,13 @@ const AIDesigns = () => {
               <Chip size="small" label={sizeLabel(job.sizeCode)} sx={{ background: "rgba(233,199,103,0.15)", color: "#E9C767" }} />
             </Box>
           </Box>
-          <Button variant="outlined" onClick={backToCustomise} sx={{ color: "#E9C767", borderColor: "rgba(233,199,103,0.5)" }}>
+          <Button
+            variant="outlined"
+            onClick={editContent}
+            disabled={EDITABLE.includes(job.mode) && firstDone == null}
+            title={EDITABLE.includes(job.mode) ? "Edit the text of the selected design here, in its preview" : "Change the content in Customise"}
+            sx={{ color: "#E9C767", borderColor: "rgba(233,199,103,0.5)" }}
+          >
             Edit content
           </Button>
         </Box>
@@ -563,8 +611,17 @@ const AIDesigns = () => {
               </Box>
 
               <Box sx={{ background: "var(--nc-paper)", borderRadius: 2, p: 2.5, border: "1px solid rgba(176,141,53,0.2)" }}>
-                {job.mode === "ai" && selected.status === "DONE" && (
-                  <Box sx={{ mb: 3 }}>
+                {EDITABLE.includes(job.mode) && selected.status === "DONE" && (
+                  <Box
+                    ref={editPanelRef}
+                    sx={{
+                      mb: 3,
+                      borderRadius: 2,
+                      transition: "box-shadow 0.4s",
+                      boxShadow: editFlash ? "0 0 0 3px rgba(176,141,53,0.55)" : "none",
+                      scrollMarginTop: 16,
+                    }}
+                  >
                     <DesignEditPanel
                       key={selected.index}
                       job={job}
